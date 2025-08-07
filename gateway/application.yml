@@ -1,0 +1,60 @@
+# Collide Gateway 多环境配置
+spring:
+  application:
+    name: @application.name@
+  config:
+    import: classpath:base.yml,classpath:cache.yml,classpath:config.yml
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin, RETAIN_UNIQUE
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedHeaders: '*'
+            allowedMethods: '*'
+            allowedOriginPatterns: '*'
+            allowCredentials: true
+            maxAge: 3600
+      routes:
+        # =================== 核心服务路由 ===================
+        
+        # 认证服务路由
+        - id: collide-auth
+          uri: lb://collide-auth
+          predicates:
+            - Path=/api/v1/auth/**,/api/v1/token/**
+
+        # =================== FastAPI业务服务路由 ===================
+        
+        # 用户服务路由 (FastAPI)
+        - id: collide-api-service
+          uri: lb://collide-api-service
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            # 传递用户认证信息到下游服务
+            - AddRequestHeader=X-User-Id, ${satoken.user.id:}
+            - AddRequestHeader=X-Username, ${satoken.user.name:}
+            - AddRequestHeader=X-User-Role, ${satoken.user.role:user}
+            
+        # 用户服务内部API路由（供认证服务调用，无需认证）
+        - id: collide-api-service-internal
+          uri: lb://collide-api-service
+          predicates:
+            - Path=/api/v1/users/internal/**
+            
+        # 健康检查路由
+        - id: collide-api-service-health
+          uri: lb://collide-api-service
+          predicates:
+            - Path=/health,/actuator/health
+            
+        # API文档路由
+        - id: collide-api-service-docs
+          uri: lb://collide-api-service
+          predicates:
+            - Path=/docs,/docs/**,/redoc,/redoc/**,/openapi.json
+
+server:
+  port: 9501
