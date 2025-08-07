@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_, and_, select, update, delete, func
 from sqlalchemy.orm import selectinload
 
-from app.database.models import User, UserWallet, UserBlock
+from app.domains.users.models import User, UserWallet, UserBlock
 from app.domains.users.schemas import (
     UserCreateRequest, UserUpdateRequest, UserPasswordVerifyRequest,
     UserLoginIdentifierRequest, PasswordChangeRequest, UserBlockRequest, UserListQuery,
