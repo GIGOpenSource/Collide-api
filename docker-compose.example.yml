@@ -6,6 +6,7 @@
 version: '3.8'
 
 services:
+
   # 用户微服务
   collide-user-service:
     build:
@@ -13,49 +14,23 @@ services:
       dockerfile: Dockerfile
     container_name: collide-user-service
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:${PORT:-8000}"
+    env_file:
+      - .env
     environment:
-      # 应用配置
-      APP_NAME: "Collide Api Service"
-      APP_VERSION: "1.0.0"
-      DEBUG: "false"
-      SERVICE_NAME: "collide-api-service"
-      
-      # 服务器配置
+      # 覆盖某些Docker特定的配置
       HOST: "0.0.0.0"
-      PORT: "8000"
-      
-      # 数据库配置
-      DATABASE_URL: "mysql+pymysql://root:123456@mysql:3306/collide"
-      
-      # Nacos配置
-      NACOS_SERVER: "nacos:8848"
-      NACOS_NAMESPACE: "public"
-      NACOS_GROUP: "DEFAULT_GROUP"
-      
-      # 服务注册配置
-      SERVICE_WEIGHT: "1.0"
-      SERVICE_HEALTHY: "true"
-      SERVICE_ENABLED: "true"
-      SERVICE_EPHEMERAL: "true"
-      
-      # 网关头部配置
-      USER_ID_HEADER: "X-User-Id"
-      USERNAME_HEADER: "X-Username"
-      USER_ROLE_HEADER: "X-User-Role"
-      
-      # 安全配置
-      PASSWORD_BCRYPT_ROUNDS: "12"
-      
-      # 日志配置
-      LOG_LEVEL: "INFO"
+      # 如果使用Docker内部网络，需要调整数据库和Nacos地址
+      DATABASE_URL: "${DATABASE_URL}"
+      NACOS_SERVER: "${NACOS_SERVER}"
     
     depends_on:
       - mysql
+      - redis
     
     networks:
       collide-network:
-        ipv4_address: 172.20.3.11
+        ipv4_address: 172.20.3.15
       
     
     restart: unless-stopped
@@ -70,27 +45,3 @@ networks:
   collide-network:
     external: true
     name: collide-network
-
-# ==========================================
-# 使用说明：
-# 
-# 1. 启动所有服务：
-#    docker-compose -f docker-compose.example.yml up -d
-#
-# 2. 查看服务状态：
-#    docker-compose -f docker-compose.example.yml ps
-#
-# 3. 查看日志：
-#    docker-compose -f docker-compose.example.yml logs -f collide-user-service
-#
-# 4. 停止服务：
-#    docker-compose -f docker-compose.example.yml down
-#
-# 5. 重建服务：
-#    docker-compose -f docker-compose.example.yml up -d --build
-#
-# 6. 访问服务：
-#    - API文档: http://localhost:8000/docs
-#    - 健康检查: http://localhost:8000/health
-#    - Nacos控制台: http://localhost:8848/nacos
-# ==========================================

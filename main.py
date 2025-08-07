@@ -20,6 +20,7 @@ from app.common.exception_handlers import (
     general_exception_handler
 )
 from app.common.nacos_client import nacos_client
+from app.common.redis_client import init_redis, close_redis
 from app.database.connection import engine, Base
 from app.domains.users.async_router import router as users_router
 
@@ -45,6 +46,13 @@ async def lifespan(app: FastAPI):
         logger.error(f"数据库初始化失败: {e}")
         raise
     
+    # 初始化Redis连接
+    try:
+        await init_redis()
+        logger.info("Redis连接初始化成功")
+    except Exception as e:
+        logger.warning(f"Redis初始化失败: {e}，缓存功能将不可用")
+    
     # 初始化并注册到Nacos
     try:
         if nacos_client.init_client():
@@ -61,6 +69,13 @@ async def lifespan(app: FastAPI):
     
     # 关闭时执行
     logger.info(f"正在关闭 {settings.app_name}...")
+    
+    # 关闭Redis连接
+    try:
+        await close_redis()
+        logger.info("Redis连接已关闭")
+    except Exception as e:
+        logger.error(f"关闭Redis连接失败: {e}")
     
     # 从Nacos注销服务
     try:

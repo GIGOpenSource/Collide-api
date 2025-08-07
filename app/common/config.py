@@ -45,6 +45,15 @@ class Settings(BaseSettings):
     username_header: str
     user_role_header: str
     
+    # Redis配置
+    redis_host: str
+    redis_port: int = 6379
+    redis_password: Optional[str] = None
+    redis_db: int = 0
+    redis_max_connections: int = 20
+    redis_socket_timeout: int = 5
+    redis_socket_connect_timeout: int = 5
+    
     # 日志配置
     log_level: str = "INFO"
     

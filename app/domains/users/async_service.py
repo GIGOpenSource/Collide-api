@@ -20,6 +20,7 @@ from app.common.exceptions import (
     BusinessException
 )
 from app.common.pagination import PaginationParams, PaginationResult
+from app.common.cache_service import get_cache_service
 import secrets
 import string
 
@@ -29,6 +30,7 @@ class AsyncUserService:
     
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.cache_service = get_cache_service()
     
     # ==================== 用户创建管理 ====================
     
@@ -91,7 +93,13 @@ class AsyncUserService:
         return UserInfo.model_validate(user)
     
     async def get_user_info(self, user_id: int) -> UserInfo:
-        """获取用户信息"""
+        """获取用户信息（带缓存）"""
+        # 先尝试从缓存获取
+        cached_user = await self.cache_service.get_user_info(user_id)
+        if cached_user:
+            return UserInfo(**cached_user)
+        
+        # 缓存未命中，从数据库查询
         stmt = select(User).where(User.id == user_id)
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
@@ -99,7 +107,12 @@ class AsyncUserService:
         if not user:
             raise UserNotFoundError("用户不存在")
         
-        return UserInfo.model_validate(user)
+        user_info = UserInfo.model_validate(user)
+        
+        # 将结果缓存
+        await self.cache_service.set_user_info(user_id, user_info.model_dump())
+        
+        return user_info
     
     async def update_user_info(self, user_id: int, request: UserUpdateRequest) -> UserInfo:
         """更新用户信息"""
@@ -138,7 +151,15 @@ class AsyncUserService:
         await self.db.commit()
         await self.db.refresh(user)
         
-        return UserInfo.model_validate(user)
+        # 清理缓存
+        await self.cache_service.delete_user_info(user_id)
+        
+        user_info = UserInfo.model_validate(user)
+        
+        # 重新缓存
+        await self.cache_service.set_user_info(user_id, user_info.model_dump())
+        
+        return user_info
     
     async def get_user_list(self, query: UserListQuery, pagination: PaginationParams) -> PaginationResult[UserInfo]:
         """获取用户列表"""
