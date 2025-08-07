@@ -126,7 +126,7 @@ class UserInfo(BaseModel):
     status: str = Field(description="用户状态")
     bio: Optional[str] = Field(description="个人简介")
     birthday: Optional[date] = Field(description="生日")
-    gender: str = Field(description="性别")
+    gender: Optional[str] = Field(default="unknown", description="性别")
     location: Optional[str] = Field(description="所在地")
     
     # 统计字段
