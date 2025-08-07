@@ -37,7 +37,7 @@ RUN useradd --create-home --shell /bin/bash app \
 USER app
 
 # 暴露端口
-EXPOSE 8000
+EXPOSE 8080
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

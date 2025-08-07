@@ -14,7 +14,7 @@ services:
       dockerfile: Dockerfile
     container_name: collide-api-service
     ports:
-      - "${PORT:-8000}:${PORT:-8000}"
+      - "${PORT:-8080}:${PORT:-8080}"
     env_file:
       - .env
     environment:
