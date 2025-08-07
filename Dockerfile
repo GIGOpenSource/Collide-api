@@ -50,7 +50,7 @@ CMD ["python", "start.py"]
 # 构建和运行说明：
 # 
 # 1. 构建镜像：
-#    docker build -t collide-user-service:latest .
+#    docker build -t collide-api-service:latest .
 #
 # 2. 运行容器：
 #    docker run -d \

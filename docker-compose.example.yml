@@ -24,10 +24,6 @@ services:
       DATABASE_URL: "${DATABASE_URL}"
       NACOS_SERVER: "${NACOS_SERVER}"
     
-    depends_on:
-      - mysql
-      - redis
-    
     networks:
       collide-network:
         ipv4_address: 172.20.3.15
