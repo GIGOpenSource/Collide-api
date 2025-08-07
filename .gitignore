@@ -1,0 +1,35 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+### IntelliJ IDEA ###
+.idea
+.mvn
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.DS_Store
+rebel.xml
+doc
+.cursor/
+rec/
+.run/
+rec/Collide项目代码风格分析报告.md
+rec/Collide项目开发规则规范.md
+logs/*
+Code/*
+middleware
