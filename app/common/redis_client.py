@@ -7,8 +7,8 @@ import logging
 from typing import Optional, Any, Union, List
 from contextlib import asynccontextmanager
 
-import aioredis
-from aioredis import Redis
+import redis.asyncio as redis
+from redis.asyncio import Redis
 
 from app.common.config import settings
 
@@ -25,18 +25,21 @@ class RedisManager:
     async def init_redis(self) -> None:
         """初始化Redis连接"""
         try:
-            # 构建Redis URL
-            redis_url = f"redis://:{settings.redis_password}@{settings.redis_host}:{settings.redis_port}/{settings.redis_db}"
-            
             # 创建连接池
-            self._redis = aioredis.from_url(
-                redis_url,
+            self._connection_pool = redis.ConnectionPool(
+                host=settings.redis_host,
+                port=settings.redis_port,
+                password=settings.redis_password,
+                db=settings.redis_db,
                 max_connections=settings.redis_max_connections,
                 socket_timeout=settings.redis_socket_timeout,
                 socket_connect_timeout=settings.redis_socket_connect_timeout,
                 decode_responses=True,
                 encoding='utf-8'
             )
+            
+            # 创建Redis客户端
+            self._redis = Redis(connection_pool=self._connection_pool)
             
             # 测试连接
             await self._redis.ping()
@@ -52,6 +55,11 @@ class RedisManager:
         if self._redis:
             await self._redis.close()
             logger.info("Redis连接已关闭")
+            self._redis = None
+        
+        if self._connection_pool:
+            await self._connection_pool.disconnect()
+            self._connection_pool = None
     
     @property
     def redis(self) -> Redis:
