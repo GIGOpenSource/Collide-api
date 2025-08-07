@@ -2,10 +2,10 @@
 用户相关的Pydantic模型
 定义请求体、响应体、DTO等
 """
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime, date
 from decimal import Decimal
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, validator, model_validator, field_validator
 import re
 
 
@@ -126,7 +126,7 @@ class UserInfo(BaseModel):
     status: str = Field(description="用户状态")
     bio: Optional[str] = Field(description="个人简介")
     birthday: Optional[date] = Field(description="生日")
-    gender: Optional[str] = Field(default="unknown", description="性别")
+    gender: str = Field(description="性别")
     location: Optional[str] = Field(description="所在地")
     
     # 统计字段
@@ -147,6 +147,14 @@ class UserInfo(BaseModel):
     invited_count: int = Field(description="邀请人数")
     
     create_time: datetime = Field(description="创建时间")
+    
+    @field_validator('gender', mode='before')
+    @classmethod
+    def set_gender_default(cls, v):
+        """为 gender 字段设置默认值"""
+        if v is None:
+            return 'unknown'
+        return v
     
     model_config = {"from_attributes": True}
 
