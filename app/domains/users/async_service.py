@@ -115,7 +115,13 @@ class AsyncUserService:
         if not user:
             raise UserNotFoundError("用户不存在")
         
+        # 记录数据库中的原始用户数据
+        logger.info(f"数据库用户数据 user_id={user_id}, gender={user.gender}, type={type(user.gender)}")
+        
         user_info = UserInfo.model_validate(user)
+        
+        # 记录验证后的用户信息
+        logger.info(f"验证后用户信息 user_id={user_id}, gender={user_info.gender}")
         
         # 将结果缓存
         await self.cache_service.set_user_info(user_id, user_info.model_dump())

@@ -3,7 +3,7 @@
 领域性接口设计，遵循RESTful规范
 """
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_async_db
@@ -115,6 +115,28 @@ async def update_login_info_internal(
         raise HTTPException(status_code=500, detail="登录信息更新失败，请稍后重试")
 
 
+# ==================== 调试接口 ====================
+
+@router.get("/debug/headers", summary="调试请求头信息", tags=["调试"])
+async def debug_headers(
+    request: Request,
+    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
+    x_username: Optional[str] = Header(None, alias="X-Username"),  
+    x_user_role: Optional[str] = Header(None, alias="X-User-Role")
+):
+    """调试请求头信息"""
+    headers_dict = dict(request.headers)
+    return {
+        "all_headers": headers_dict,
+        "extracted_headers": {
+            "x_user_id": x_user_id,
+            "x_username": x_username,
+            "x_user_role": x_user_role
+        },
+        "user_related_headers": {k: v for k, v in headers_dict.items() if "user" in k.lower()}
+    }
+
+
 # ==================== 用户信息管理接口 ====================
 
 @router.get("/me", response_model=SuccessResponse[UserInfo], summary="获取当前用户信息")
@@ -124,14 +146,17 @@ async def get_current_user_info(
 ):
     """获取当前登录用户的详细信息"""
     try:
+        logger.info(f"正在获取用户信息 user_id={current_user_id}")
         user_service = AsyncUserService(db)
         user_info = await user_service.get_user_info(current_user_id)
+        logger.info(f"成功获取用户信息 user_id={current_user_id}, gender={user_info.gender}")
         return SuccessResponse.create(data=user_info)
     
     except BusinessException as e:
+        logger.error(f"业务异常 user_id={current_user_id}: {e.message}")
         raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
-        logger.error(f"获取用户信息失败: {str(e)}")
+        logger.error(f"获取用户信息失败 user_id={current_user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="获取用户信息失败")
 
 
