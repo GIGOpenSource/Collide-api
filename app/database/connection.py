@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import QueuePool
+
 from typing import AsyncGenerator
 
 from app.common.config import settings
@@ -16,7 +16,6 @@ async_database_url = settings.database_url.replace("mysql+pymysql://", "mysql+ai
 # 创建异步数据库引擎
 async_engine = create_async_engine(
     async_database_url,
-    poolclass=QueuePool,
     pool_size=20,
     max_overflow=40,
     pool_pre_ping=True,
@@ -49,7 +48,6 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
 # 保持同步版本以兼容现有代码和启动检查
 engine = create_engine(
     settings.database_url,
-    poolclass=QueuePool,
     pool_size=20,
     max_overflow=40,
     pool_pre_ping=True,
