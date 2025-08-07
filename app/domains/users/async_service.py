@@ -23,6 +23,9 @@ from app.common.pagination import PaginationParams, PaginationResult
 from app.common.cache_service import get_cache_service
 import secrets
 import string
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AsyncUserService:
@@ -97,7 +100,12 @@ class AsyncUserService:
         # 先尝试从缓存获取
         cached_user = await self.cache_service.get_user_info(user_id)
         if cached_user:
-            return UserInfo(**cached_user)
+            try:
+                return UserInfo.model_validate(cached_user)
+            except Exception as e:
+                # 如果缓存数据验证失败，清除缓存并从数据库重新加载
+                logger.warning(f"缓存用户信息验证失败，清除缓存 user_id={user_id}: {e}")
+                await self.cache_service.delete_user_info(user_id)
         
         # 缓存未命中，从数据库查询
         stmt = select(User).where(User.id == user_id)
