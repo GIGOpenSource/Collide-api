@@ -57,3 +57,29 @@ class OperationFailedError(BusinessException):
     
     def __init__(self, message: str = "操作失败"):
         super().__init__(message=message, code=1005)
+
+
+class ContentException(BusinessException):
+    """内容相关异常"""
+    pass
+
+
+class ContentNotFoundError(ContentException):
+    """内容不存在异常"""
+    
+    def __init__(self, message: str = "内容不存在"):
+        super().__init__(message=message, code=2001)
+
+
+class ChapterNotFoundError(ContentException):
+    """章节不存在异常"""
+    
+    def __init__(self, message: str = "章节不存在"):
+        super().__init__(message=message, code=2002)
+
+
+class ContentAccessDeniedError(ContentException):
+    """内容访问权限不足异常"""
+    
+    def __init__(self, message: str = "内容访问权限不足"):
+        super().__init__(message=message, code=2003)
