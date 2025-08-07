@@ -36,6 +36,25 @@ loguru>=0.7.0,<0.8.0
 # 异步支持
 asyncio-mqtt>=0.16.0,<0.17.0
 
+# 时间处理
+python-dateutil>=2.8.2,<3.0.0
+
+# 缓存支持（如果使用Redis缓存）
+redis>=5.0.0,<6.0.0
+aioredis>=2.0.0,<3.0.0
+
+# 文件处理
+aiofiles>=23.2.0,<25.0.0
+
+# 数据验证增强
+email-validator>=2.1.0,<3.0.0
+
+# 监控和健康检查
+prometheus-client>=0.19.0,<1.0.0
+
+# 请求ID追踪
+correlation-id>=4.0.0,<5.0.0
+
 # 开发和测试工具
 pytest>=7.4.3,<8.0.0
 pytest-asyncio>=0.21.1,<0.24.0
