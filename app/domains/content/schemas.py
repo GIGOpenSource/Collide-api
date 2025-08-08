@@ -4,7 +4,7 @@
 """
 from datetime import datetime
 from typing import Optional, List, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ================ 枚举类型 ================
@@ -67,6 +67,16 @@ class ContentBase(BaseModel):
     tags: Optional[str] = Field(None, description="标签，逗号分隔或JSON格式")
     category_id: Optional[int] = Field(None, description="分类ID")
     category_name: Optional[str] = Field(None, max_length=100, description="分类名称")
+
+    @field_validator("content_type", mode="before")
+    @classmethod
+    def _normalize_content_type(cls, v):
+        if isinstance(v, str):
+            upper_v = v.upper()
+            if upper_v == "VIDEO":
+                return "LONG_VIDEO"
+            return upper_v
+        return v
 
 
 class ContentCreate(ContentBase):
@@ -295,6 +305,16 @@ class ContentQueryParams(BaseModel):
     
     sort_by: str = Field(default="create_time", description="排序字段：create_time, update_time, publish_time, view_count, like_count, favorite_count, comment_count, score")
     sort_order: str = Field(default="desc", description="排序方向：asc, desc")
+
+    @field_validator("content_type", mode="before")
+    @classmethod
+    def _normalize_query_content_type(cls, v):
+        if isinstance(v, str):
+            upper_v = v.upper()
+            if upper_v == "VIDEO":
+                return "LONG_VIDEO"
+            return upper_v
+        return v
 
 
 class PublishContentRequest(BaseModel):
