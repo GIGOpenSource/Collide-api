@@ -2,7 +2,7 @@
 评论模块异步API路由
 """
 from typing import Optional, List
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_async_db
@@ -110,8 +110,8 @@ async def list_comments(
 
 @router.get("/tree/{comment_type}/{target_id}", response_model=SuccessResponse[List[CommentTreeInfo]], summary="获取树状评论")
 async def get_comment_tree(
-    comment_type: str = Query(..., description="评论类型：CONTENT、DYNAMIC"),
-    target_id: int = Query(..., description="目标对象ID"),
+    comment_type: str = Path(..., description="评论类型：CONTENT、DYNAMIC"),
+    target_id: int = Path(..., description="目标对象ID"),
     max_level: int = Query(3, ge=1, le=5, description="最大层级深度"),
     max_replies_per_comment: int = Query(10, ge=1, le=50, description="每个评论最大回复数"),
     db: AsyncSession = Depends(get_async_db),
@@ -146,8 +146,8 @@ async def get_comment_replies(
 
 @router.get("/count/{comment_type}/{target_id}", response_model=SuccessResponse[int], summary="获取评论总数")
 async def get_comment_count(
-    comment_type: str = Query(..., description="评论类型：CONTENT、DYNAMIC"),
-    target_id: int = Query(..., description="目标对象ID"),
+    comment_type: str = Path(..., description="评论类型：CONTENT、DYNAMIC"),
+    target_id: int = Path(..., description="目标对象ID"),
     db: AsyncSession = Depends(get_async_db),
 ):
     """获取指定目标的评论总数"""
