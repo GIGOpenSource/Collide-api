@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_async_db
-from app.common.dependencies import get_current_user_context, UserContext, get_optional_user_context
+from app.common.dependencies import get_current_user_context, UserContext, get_optional_user_context, get_pagination
 from app.common.response import SuccessResponse, PaginationResponse
 from app.common.pagination import PaginationParams
 from app.domains.content.async_service import ContentAsyncService
@@ -104,7 +104,7 @@ async def update_content(
     return SuccessResponse(data=content, message="内容更新成功")
 
 
-@router.delete("/{content_id}", response_model=SuccessResponse[bool])
+@router.delete("/{content_id}", response_model=SuccessResponse[bool], summary="删除内容", description="删除指定内容及其关联章节和付费配置")
 async def delete_content(
     content_id: int,
     current_user: UserContext = Depends(get_current_user_context),
@@ -116,7 +116,7 @@ async def delete_content(
     return SuccessResponse(data=result, message="内容删除成功")
 
 
-@router.post("/{content_id}/publish", response_model=SuccessResponse[ContentInfo])
+@router.post("/{content_id}/publish", response_model=SuccessResponse[ContentInfo], summary="发布内容", description="将草稿内容发布上线")
 async def publish_content(
     content_id: int,
     publish_request: PublishContentRequest,
@@ -164,18 +164,11 @@ async def get_content_list(
     # 标签筛选
     tags: Optional[str] = Query(None, description="标签筛选，多个标签用逗号分隔，如：玄幻,修仙,热血"),
     
-    # 排序和分页参数
+    # 排序
     sort_by: str = Query("create_time", description="排序字段：create_time(创建时间), update_time(更新时间), publish_time(发布时间), view_count(浏览量), like_count(点赞数), favorite_count(收藏数), comment_count(评论数), score(评分)"),
     sort_order: str = Query("desc", description="排序方向：asc(升序), desc(降序)"),
-    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
-    page: Optional[int] = Query(None, ge=1, description="页码，从1开始"),
-    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
-    current: Optional[int] = Query(None, alias="current", ge=1, description="页码(别名: current)"),
-    page_num: Optional[int] = Query(None, alias="pageNum", ge=1, description="页码(别名: pageNum)"),
-    size: Optional[int] = Query(None, ge=1, le=100, description="每页显示数量，最大100"),
-    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页显示数量(别名)"),
-    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页显示数量(别名)"),
-    per_page: Optional[int] = Query(None, alias="per_page", ge=1, le=100, description="每页显示数量(别名: per_page)"),
+    # 分页参数（统一依赖）
+    pagination: PaginationParams = Depends(get_pagination),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -240,12 +233,11 @@ async def get_content_list(
     )
     effective_page = page or current_page or current or page_num or 1
     effective_size = size or page_size or limit or per_page or 20
-    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取成功")
 
 
-@router.post("/{content_id}/stats", response_model=SuccessResponse[bool])
+@router.post("/{content_id}/stats", response_model=SuccessResponse[bool], summary="更新内容统计", description="按类型增长浏览/点赞/评论/分享/收藏等统计")
 async def update_content_stats(
     content_id: int,
     stats_update: ContentStatsUpdate,
@@ -261,7 +253,7 @@ async def update_content_stats(
     return SuccessResponse(data=result, message="统计更新成功")
 
 
-@router.post("/{content_id}/score", response_model=SuccessResponse[bool])
+@router.post("/{content_id}/score", response_model=SuccessResponse[bool], summary="为内容评分", description="对指定内容进行1-5分评分")
 async def score_content(
     content_id: int,
     score_request: ScoreContentRequest,
@@ -309,7 +301,7 @@ async def create_chapter(
     return SuccessResponse(data=chapter, message="章节创建成功")
 
 
-@router.get("/{content_id}/chapters", response_model=SuccessResponse[List[ChapterListItem]])
+@router.get("/{content_id}/chapters", response_model=SuccessResponse[List[ChapterListItem]], summary="获取章节列表", description="获取指定内容的章节列表（不含正文）")
 async def get_content_chapters(
     content_id: int,
     current_user: Optional[UserContext] = Depends(get_optional_user_context),
@@ -322,7 +314,7 @@ async def get_content_chapters(
     return SuccessResponse(data=chapters, message="获取成功")
 
 
-@router.get("/chapters/{chapter_id}", response_model=SuccessResponse[ChapterInfo])
+@router.get("/chapters/{chapter_id}", response_model=SuccessResponse[ChapterInfo], summary="获取章节详情", description="根据章节ID获取章节详细信息")
 async def get_chapter(
     chapter_id: int,
     current_user: Optional[UserContext] = Depends(get_optional_user_context),
@@ -335,7 +327,7 @@ async def get_chapter(
     return SuccessResponse(data=chapter, message="获取成功")
 
 
-@router.put("/chapters/{chapter_id}", response_model=SuccessResponse[ChapterInfo])
+@router.put("/chapters/{chapter_id}", response_model=SuccessResponse[ChapterInfo], summary="更新章节", description="更新章节标题/内容/字数/状态等信息")
 async def update_chapter(
     chapter_id: int,
     chapter_data: ChapterUpdate,
@@ -348,7 +340,7 @@ async def update_chapter(
     return SuccessResponse(data=chapter, message="章节更新成功")
 
 
-@router.delete("/chapters/{chapter_id}", response_model=SuccessResponse[bool])
+@router.delete("/chapters/{chapter_id}", response_model=SuccessResponse[bool], summary="删除章节", description="删除指定章节")
 async def delete_chapter(
     chapter_id: int,
     current_user: UserContext = Depends(get_current_user_context),
@@ -362,7 +354,7 @@ async def delete_chapter(
 
 # ================ 付费配置接口 ================
 
-@router.post("/{content_id}/payment", response_model=SuccessResponse[ContentPaymentInfo])
+@router.post("/{content_id}/payment", response_model=SuccessResponse[ContentPaymentInfo], summary="创建付费配置", description="为内容创建付费/权限/时效等配置")
 async def create_content_payment(
     content_id: int,
     payment_data: ContentPaymentCreate,
@@ -377,7 +369,7 @@ async def create_content_payment(
     return SuccessResponse(data=payment, message="付费配置创建成功")
 
 
-@router.get("/{content_id}/payment", response_model=SuccessResponse[Optional[ContentPaymentInfo]])
+@router.get("/{content_id}/payment", response_model=SuccessResponse[Optional[ContentPaymentInfo]], summary="获取付费配置", description="查询指定内容的付费配置")
 async def get_content_payment(
     content_id: int,
     db: AsyncSession = Depends(get_async_db)
@@ -429,7 +421,7 @@ async def create_purchase_record(
     return SuccessResponse(data=purchase, message="购买成功")
 
 
-@router.get("/{content_id}/purchase", response_model=SuccessResponse[Optional[UserContentPurchaseInfo]])
+@router.get("/{content_id}/purchase", response_model=SuccessResponse[Optional[UserContentPurchaseInfo]], summary="检查是否已购买", description="检查当前用户是否购买了指定内容")
 async def check_user_purchase(
     content_id: int,
     current_user: UserContext = Depends(get_current_user_context),
@@ -441,25 +433,14 @@ async def check_user_purchase(
     return SuccessResponse(data=purchase, message="检查完成")
 
 
-@router.get("/purchases/my", response_model=PaginationResponse[UserContentPurchaseInfo])
+@router.get("/purchases/my", response_model=PaginationResponse[UserContentPurchaseInfo], summary="我的购买记录", description="分页获取当前用户的内容购买记录")
 async def get_my_purchases(
-    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
-    page: Optional[int] = Query(None, ge=1, description="页码"),
-    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
-    current: Optional[int] = Query(None, alias="current", ge=1, description="页码(别名: current)"),
-    page_num: Optional[int] = Query(None, alias="pageNum", ge=1, description="页码(别名: pageNum)"),
-    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
-    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
-    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
-    per_page: Optional[int] = Query(None, alias="per_page", ge=1, le=100, description="每页数量(别名: per_page)"),
+    pagination: PaginationParams = Depends(get_pagination),
     current_user: UserContext = Depends(get_current_user_context),
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取我的购买记录"""
     service = ContentAsyncService(db)
-    effective_page = page or current_page or current or page_num or 1
-    effective_size = size or page_size or limit or per_page or 20
-    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_user_purchases(current_user.user_id, pagination)
     return PaginationResponse.from_pagination_result(result, "获取成功")
 
@@ -557,7 +538,7 @@ async def get_my_contents(
 
 # ================ 内容统计接口 ================
 
-@router.get("/{content_id}/stats", response_model=SuccessResponse[dict])
+@router.get("/{content_id}/stats", response_model=SuccessResponse[dict], summary="获取内容统计", description="获取内容的浏览/点赞/评论/收藏/评分等统计数据")
 async def get_content_stats(
     content_id: int,
     db: AsyncSession = Depends(get_async_db)
@@ -587,15 +568,7 @@ async def get_hot_contents(
     content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、VIDEO、ARTICLE、AUDIO"),
     category_id: Optional[int] = Query(None, description="分类ID"),
     days: int = Query(7, ge=1, le=365, description="统计天数，默认7天，最大365天"),
-    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
-    page: Optional[int] = Query(None, ge=1, description="页码"),
-    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
-    current: Optional[int] = Query(None, alias="current", ge=1, description="页码(别名: current)"),
-    page_num: Optional[int] = Query(None, alias="pageNum", ge=1, description="页码(别名: pageNum)"),
-    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
-    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
-    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
-    per_page: Optional[int] = Query(None, alias="per_page", ge=1, le=100, description="每页数量(别名: per_page)"),
+    pagination: PaginationParams = Depends(get_pagination),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -625,9 +598,6 @@ async def get_hot_contents(
         sort_by="view_count",  # 可以后续改为综合热度算法
         sort_order="desc"
     )
-    effective_page = page or current_page or current or page_num or 1
-    effective_size = size or page_size or limit or per_page or 20
-    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, f"获取{days}天内热门内容成功")
 
@@ -636,15 +606,7 @@ async def get_hot_contents(
 async def get_latest_contents(
     content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"),
     category_id: Optional[int] = Query(None, description="分类ID"),
-    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
-    page: Optional[int] = Query(None, ge=1, description="页码"),
-    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
-    current: Optional[int] = Query(None, alias="current", ge=1, description="页码(别名: current)"),
-    page_num: Optional[int] = Query(None, alias="pageNum", ge=1, description="页码(别名: pageNum)"),
-    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
-    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
-    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
-    per_page: Optional[int] = Query(None, alias="per_page", ge=1, le=100, description="每页数量(别名: per_page)"),
+    pagination: PaginationParams = Depends(get_pagination),
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取最新内容 - 按发布时间排序"""
@@ -657,9 +619,6 @@ async def get_latest_contents(
         sort_by="publish_time",
         sort_order="desc"
     )
-    effective_page = page or current_page or current or page_num or 1
-    effective_size = size or page_size or limit or per_page or 20
-    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取最新内容成功")
 
@@ -668,15 +627,7 @@ async def get_latest_contents(
 async def get_recommended_contents(
     content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"),
     category_id: Optional[int] = Query(None, description="分类ID"),
-    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
-    page: Optional[int] = Query(None, ge=1, description="页码"),
-    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
-    current: Optional[int] = Query(None, alias="current", ge=1, description="页码(别名: current)"),
-    page_num: Optional[int] = Query(None, alias="pageNum", ge=1, description="页码(别名: pageNum)"),
-    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
-    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
-    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
-    per_page: Optional[int] = Query(None, alias="per_page", ge=1, le=100, description="每页数量(别名: per_page)"),
+    pagination: PaginationParams = Depends(get_pagination),
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取推荐内容 - 按评分和热度排序"""
@@ -690,9 +641,6 @@ async def get_recommended_contents(
         sort_by="score",
         sort_order="desc"
     )
-    effective_page = page or current_page or current or page_num or 1
-    effective_size = size or page_size or limit or per_page or 20
-    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取推荐内容成功")
 
@@ -701,15 +649,7 @@ async def get_recommended_contents(
 async def get_trending_contents(
     content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"),
     category_id: Optional[int] = Query(None, description="分类ID"),
-    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
-    page: Optional[int] = Query(None, ge=1, description="页码"),
-    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
-    current: Optional[int] = Query(None, alias="current", ge=1, description="页码(别名: current)"),
-    page_num: Optional[int] = Query(None, alias="pageNum", ge=1, description="页码(别名: pageNum)"),
-    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
-    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
-    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
-    per_page: Optional[int] = Query(None, alias="per_page", ge=1, le=100, description="每页数量(别名: per_page)"),
+    pagination: PaginationParams = Depends(get_pagination),
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取趋势内容 - 按点赞数排序"""
@@ -723,9 +663,6 @@ async def get_trending_contents(
         sort_by="like_count",
         sort_order="desc"
     )
-    effective_page = page or current_page or current or page_num or 1
-    effective_size = size or page_size or limit or per_page or 20
-    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取趋势内容成功")
 
@@ -737,12 +674,7 @@ async def search_contents(
     category_id: Optional[int] = Query(None, description="分类ID"),
     sort_by: str = Query("view_count", description="排序字段：create_time(创建时间), update_time(更新时间), publish_time(发布时间), view_count(浏览量), like_count(点赞数), favorite_count(收藏数), comment_count(评论数), score(评分)"),
     sort_order: str = Query("desc", description="排序方向：asc(升序), desc(降序)"),
-    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
-    page: Optional[int] = Query(None, ge=1, description="页码"),
-    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
-    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
-    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
-    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
+    pagination: PaginationParams = Depends(get_pagination),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -780,6 +712,34 @@ async def search_contents(
     )
     effective_page = page or current_page or 1
     effective_size = size or page_size or limit or 20
-    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, f"搜索'{q}'的结果")
+
+
+@router.get("/by-category-name", response_model=PaginationResponse[ContentInfo], summary="按分类名称查询内容", description="根据分类名称（精确/模糊）聚合查询内容列表")
+async def get_contents_by_category_name(
+    category_name: str = Query(..., min_length=1, description="分类名称"),
+    match: str = Query("exact", description="匹配方式：exact 精确匹配，contains 模糊匹配"),
+    # 可复用内容查询的其它筛选条件
+    content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"),
+    author_id: Optional[int] = Query(None, description="作者用户ID"),
+    status: Optional[str] = Query(None, description="状态：DRAFT、PUBLISHED、OFFLINE"),
+    review_status: Optional[str] = Query(None, description="审核状态：PENDING、APPROVED、REJECTED"),
+    keyword: Optional[str] = Query(None, description="关键词（标题/描述/标签/作者）"),
+    sort_by: str = Query("create_time", description="排序字段：create_time、update_time、publish_time、view_count、like_count、favorite_count、comment_count、score"),
+    sort_order: str = Query("desc", description="排序方向：asc、desc"),
+    pagination: PaginationParams = Depends(get_pagination),
+    db: AsyncSession = Depends(get_async_db)
+):
+    service = ContentAsyncService(db)
+    query_params = ContentQueryParams(
+        content_type=content_type,
+        author_id=author_id,
+        status=status,
+        review_status=review_status,
+        keyword=keyword,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
+    result = await service.get_content_list_by_category_name(category_name, match, query_params, pagination)
+    return PaginationResponse.from_pagination_result(result, "获取成功")

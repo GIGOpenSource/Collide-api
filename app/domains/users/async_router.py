@@ -14,7 +14,7 @@ from app.domains.users.schemas import (
     UserInfo, UserWalletInfo, UserBlockInfo, UserByIdentifierResponse
 )
 from app.common.response import SuccessResponse, PaginationResponse, ErrorResponse
-from app.common.dependencies import get_current_user_id, get_optional_user_context, UserContext
+from app.common.dependencies import get_current_user_id, get_optional_user_context, UserContext, get_pagination
 from app.common.pagination import PaginationParams, PaginationResult
 from app.common.exceptions import BusinessException
 import logging
@@ -213,22 +213,11 @@ async def get_user_list(
     keyword: Optional[str] = Query(None, description="搜索关键词（用户名/昵称/邮箱）"),
     role: Optional[str] = Query(None, description="用户角色"),
     status: Optional[str] = Query(None, description="用户状态"),
-    # 分页参数（兼容多种命名：page/currentPage，page_size/pageSize/size/limit）
-    page: Optional[int] = Query(None, ge=1, description="页码"),
-    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
-    current: Optional[int] = Query(None, alias="current", ge=1, description="页码(别名: current)"),
-    page_num: Optional[int] = Query(None, alias="pageNum", ge=1, description="页码(别名: pageNum)"),
-    page_size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
-    page_size_alias: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
-    size: Optional[int] = Query(None, alias="size", ge=1, le=100, description="每页数量(别名)"),
-    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
-    per_page: Optional[int] = Query(None, alias="per_page", ge=1, le=100, description="每页数量(别名: per_page)")
+    # 分页参数（统一依赖）
+    pagination: PaginationParams = Depends(get_pagination)
 ):
     """获取用户列表（分页）"""
     try:
-        effective_page = page or current_page or current or page_num or 1
-        effective_page_size = page_size or page_size_alias or size or limit or per_page or 20
-        pagination = PaginationParams(page=effective_page, page_size=effective_page_size)
         query = UserListQuery(keyword=keyword, role=role, status=status)
         
         user_service = AsyncUserService(db)

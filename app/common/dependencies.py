@@ -3,10 +3,11 @@ FastAPI依赖项（微服务版本）
 从网关传递的请求头获取用户信息
 """
 from typing import Optional
-from fastapi import HTTPException, Header, Depends
+from fastapi import HTTPException, Header, Depends, Query
 from pydantic import BaseModel
 
 from app.common.config import settings
+from app.common.pagination import PaginationParams
 
 
 class UserContext(BaseModel):
@@ -87,3 +88,21 @@ async def require_admin(
             detail="需要管理员权限"
         )
     return user_context
+
+
+async def get_pagination(
+    # 页码别名
+    page: Optional[int] = Query(None, ge=1, description="页码"),
+    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
+    current: Optional[int] = Query(None, alias="current", ge=1, description="页码(别名: current)"),
+    page_num: Optional[int] = Query(None, alias="pageNum", ge=1, description="页码(别名: pageNum)"),
+    # 每页大小别名
+    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
+    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
+    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
+    per_page: Optional[int] = Query(None, alias="per_page", ge=1, le=100, description="每页数量(别名: per_page)")
+) -> PaginationParams:
+    """统一分页依赖：兼容多种前端命名，返回 PaginationParams"""
+    effective_page = page or current_page or current or page_num or 1
+    effective_page_size = size or page_size or limit or per_page or 20
+    return PaginationParams(page=effective_page, page_size=effective_page_size)

@@ -59,6 +59,18 @@ class OperationFailedError(BusinessException):
         super().__init__(message=message, code=1005)
 
 
+class CategoryException(BusinessException):
+    """分类相关异常"""
+    pass
+
+
+class CategoryNotFoundError(CategoryException):
+    """分类不存在异常"""
+    
+    def __init__(self, message: str = "分类不存在"):
+        super().__init__(message=message, code=3001)
+
+
 class ContentException(BusinessException):
     """内容相关异常"""
     pass

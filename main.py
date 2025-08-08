@@ -24,6 +24,7 @@ from app.common.redis_client import init_redis, close_redis
 from app.database.connection import engine, Base
 from app.domains.users.async_router import router as users_router
 from app.domains.content.async_router import router as content_router
+from app.domains.category.async_router import router as category_router
 
 # 配置日志
 logging.basicConfig(
@@ -131,6 +132,7 @@ app.add_exception_handler(Exception, general_exception_handler)
 # 注册路由
 app.include_router(users_router)
 app.include_router(content_router)
+app.include_router(category_router)
 
 # 健康检查接口
 @app.get("/health", tags=["系统"], summary="健康检查")

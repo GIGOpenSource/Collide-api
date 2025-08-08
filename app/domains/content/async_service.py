@@ -8,6 +8,7 @@ from sqlalchemy import select, update, delete, and_, or_, func
 from sqlalchemy.orm import selectinload
 
 from app.domains.content.models import Content, ContentChapter, ContentPayment, UserContentPurchase
+from app.domains.category.models import Category
 from app.domains.content.schemas import (
     ContentCreate, ContentUpdate, ContentInfo, ContentQueryParams,
     ChapterCreate, ChapterUpdate, ChapterInfo, ChapterListItem,
@@ -377,6 +378,155 @@ class ContentAsyncService:
         except Exception as e:
             await self.db.rollback()
             raise BusinessException(f"更新统计数据失败: {str(e)}")
+
+    async def get_content_list_by_category_name(
+        self,
+        category_name: str,
+        match: str,
+        query_params: ContentQueryParams,
+        pagination: PaginationParams,
+    ) -> PaginationResult[ContentInfo]:
+        """根据分类名称聚合查询内容列表
+
+        - match: "exact" 精确匹配；"contains" 模糊包含
+        - 先查询分类ID集合（无连表），再用 IN 条件过滤内容
+        """
+        try:
+            # 查询匹配的分类ID
+            if match == "exact":
+                cat_stmt = select(Category.id).where(Category.name == category_name)
+            else:
+                cat_stmt = select(Category.id).where(Category.name.contains(category_name))
+            category_ids = (await self.db.execute(cat_stmt)).scalars().all()
+
+            if not category_ids:
+                return PaginationResult.create(items=[], total=0, page=pagination.page, page_size=pagination.page_size)
+
+            # 构建查询条件（复用与 get_content_list 一致的筛选）
+            conditions = [Content.category_id.in_(category_ids)]
+
+            if query_params.content_type:
+                conditions.append(Content.content_type == query_params.content_type)
+            if query_params.author_id:
+                conditions.append(Content.author_id == query_params.author_id)
+            if query_params.status:
+                conditions.append(Content.status == query_params.status)
+            if query_params.review_status:
+                conditions.append(Content.review_status == query_params.review_status)
+            if query_params.keyword:
+                conditions.append(
+                    or_(
+                        Content.title.contains(query_params.keyword),
+                        Content.description.contains(query_params.keyword),
+                        Content.tags.contains(query_params.keyword),
+                        Content.author_nickname.contains(query_params.keyword),
+                    )
+                )
+
+            # 统计数据筛选
+            if query_params.min_view_count is not None:
+                conditions.append(Content.view_count >= query_params.min_view_count)
+            if query_params.max_view_count is not None:
+                conditions.append(Content.view_count <= query_params.max_view_count)
+            if query_params.min_like_count is not None:
+                conditions.append(Content.like_count >= query_params.min_like_count)
+            if query_params.max_like_count is not None:
+                conditions.append(Content.like_count <= query_params.max_like_count)
+            if query_params.min_favorite_count is not None:
+                conditions.append(Content.favorite_count >= query_params.min_favorite_count)
+            if query_params.max_favorite_count is not None:
+                conditions.append(Content.favorite_count <= query_params.max_favorite_count)
+            if query_params.min_comment_count is not None:
+                conditions.append(Content.comment_count >= query_params.min_comment_count)
+            if query_params.max_comment_count is not None:
+                conditions.append(Content.comment_count <= query_params.max_comment_count)
+
+            # 评分筛选
+            if query_params.min_score is not None:
+                conditions.append(Content.score_count > 0)
+                conditions.append((Content.score_total / Content.score_count) >= query_params.min_score)
+            if query_params.max_score is not None:
+                conditions.append(Content.score_count > 0)
+                conditions.append((Content.score_total / Content.score_count) <= query_params.max_score)
+
+            # 时间筛选
+            if query_params.publish_date_start:
+                try:
+                    start_date = datetime.strptime(query_params.publish_date_start, "%Y-%m-%d")
+                    conditions.append(Content.publish_time >= start_date)
+                except ValueError:
+                    pass
+            if query_params.publish_date_end:
+                try:
+                    end_date = datetime.strptime(query_params.publish_date_end, "%Y-%m-%d")
+                    end_date = end_date.replace(hour=23, minute=59, second=59)
+                    conditions.append(Content.publish_time <= end_date)
+                except ValueError:
+                    pass
+            if query_params.create_date_start:
+                try:
+                    start_date = datetime.strptime(query_params.create_date_start, "%Y-%m-%d")
+                    conditions.append(Content.create_time >= start_date)
+                except ValueError:
+                    pass
+            if query_params.create_date_end:
+                try:
+                    end_date = datetime.strptime(query_params.create_date_end, "%Y-%m-%d")
+                    end_date = end_date.replace(hour=23, minute=59, second=59)
+                    conditions.append(Content.create_time <= end_date)
+                except ValueError:
+                    pass
+
+            # 标签筛选
+            if query_params.tags:
+                tag_list = [tag.strip() for tag in query_params.tags.split(",") if tag.strip()]
+                if tag_list:
+                    tag_conditions = [Content.tags.contains(tag) for tag in tag_list]
+                    conditions.append(or_(*tag_conditions))
+
+            # 构建主查询
+            stmt = select(Content)
+            if conditions:
+                stmt = stmt.where(and_(*conditions))
+
+            # 排序
+            sort_column = Content.create_time
+            if query_params.sort_by == "create_time":
+                sort_column = Content.create_time
+            elif query_params.sort_by == "update_time":
+                sort_column = Content.update_time
+            elif query_params.sort_by == "publish_time":
+                sort_column = Content.publish_time
+            elif query_params.sort_by == "view_count":
+                sort_column = Content.view_count
+            elif query_params.sort_by == "like_count":
+                sort_column = Content.like_count
+            elif query_params.sort_by == "favorite_count":
+                sort_column = Content.favorite_count
+            elif query_params.sort_by == "comment_count":
+                sort_column = Content.comment_count
+            elif query_params.sort_by == "score":
+                sort_column = func.coalesce(Content.score_total / func.nullif(Content.score_count, 0), 0)
+
+            if query_params.sort_order == "asc":
+                stmt = stmt.order_by(sort_column.asc())
+            else:
+                stmt = stmt.order_by(sort_column.desc())
+
+            if query_params.sort_by != "create_time":
+                stmt = stmt.order_by(Content.create_time.desc())
+
+            # 分页
+            total_stmt = select(func.count()).select_from(stmt.subquery())
+            total = (await self.db.execute(total_stmt)).scalar()
+
+            stmt = stmt.offset(pagination.offset).limit(pagination.limit)
+            result = await self.db.execute(stmt)
+            contents = result.scalars().all()
+            items = [ContentInfo.model_validate(c) for c in contents]
+            return PaginationResult.create(items=items, total=total, page=pagination.page, page_size=pagination.page_size)
+        except Exception as e:
+            raise BusinessException(f"根据分类名获取内容失败: {str(e)}")
 
     async def score_content(self, content_id: int, user_id: int, score_request: ScoreContentRequest) -> bool:
         """为内容评分"""
