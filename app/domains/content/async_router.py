@@ -231,8 +231,6 @@ async def get_content_list(
         sort_by=sort_by,
         sort_order=sort_order
     )
-    effective_page = page or current_page or current or page_num or 1
-    effective_size = size or page_size or limit or per_page or 20
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取成功")
 
@@ -477,8 +475,7 @@ async def get_my_contents(
     # 排序和分页参数
     sort_by: str = Query("create_time", description="排序字段：create_time、update_time、publish_time、view_count、like_count、favorite_count、comment_count、score"),
     sort_order: str = Query("desc", description="排序方向：asc(升序)、desc(降序)"),
-    page: int = Query(1, ge=1, description="页码"),
-    size: int = Query(20, ge=1, le=100, description="每页数量"),
+    pagination: PaginationParams = Depends(get_pagination),
     current_user: UserContext = Depends(get_current_user_context),
     db: AsyncSession = Depends(get_async_db)
 ):
@@ -710,8 +707,6 @@ async def search_contents(
         sort_by=sort_by,
         sort_order=sort_order
     )
-    effective_page = page or current_page or 1
-    effective_size = size or page_size or limit or 20
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, f"搜索'{q}'的结果")
 
