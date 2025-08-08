@@ -45,6 +45,13 @@ class CommentInfo(CommentBase):
     model_config = {"from_attributes": True}
 
 
+class CommentTreeInfo(CommentInfo):
+    """树状评论信息"""
+    children: List['CommentTreeInfo'] = Field(default_factory=list, description="子评论列表")
+    level: int = Field(default=0, description="评论层级，0为根评论")
+    has_more_replies: bool = Field(default=False, description="是否有更多回复")
+
+
 class CommentQuery(BaseModel):
     """评论查询参数"""
     comment_type: Optional[str] = Field(None, description="评论类型过滤")
@@ -52,4 +59,8 @@ class CommentQuery(BaseModel):
     user_id: Optional[int] = Field(None, description="用户过滤")
     parent_comment_id: Optional[int] = Field(None, description="父评论ID过滤")
     status: Optional[str] = Field(None, description="状态过滤")
+
+
+# 解决循环引用
+CommentTreeInfo.model_rebuild()
 

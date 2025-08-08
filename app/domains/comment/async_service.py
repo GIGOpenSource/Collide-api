@@ -1,12 +1,12 @@
 """
 评论模块异步服务层
 """
-from typing import Optional
+from typing import Optional, List, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, and_, func
 
 from app.domains.comment.models import Comment
-from app.domains.comment.schemas import CommentCreate, CommentUpdate, CommentInfo, CommentQuery
+from app.domains.comment.schemas import CommentCreate, CommentUpdate, CommentInfo, CommentQuery, CommentTreeInfo
 from app.common.pagination import PaginationParams, PaginationResult
 from app.common.exceptions import BusinessException
 
@@ -111,4 +111,79 @@ class CommentAsyncService:
         rows = (await self.db.execute(stmt)).scalars().all()
         items = [CommentInfo.model_validate(r) for r in rows]
         return PaginationResult.create(items=items, total=total, page=pagination.page, page_size=pagination.page_size)
+
+    async def get_comment_tree(self, comment_type: str, target_id: int, max_level: int = 3, max_replies_per_comment: int = 10) -> List[CommentTreeInfo]:
+        """获取树状评论结构"""
+        # 获取所有相关评论
+        stmt = select(Comment).where(
+            and_(
+                Comment.comment_type == comment_type,
+                Comment.target_id == target_id,
+                Comment.status == "NORMAL"
+            )
+        ).order_by(Comment.create_time.desc())
+        
+        all_comments = (await self.db.execute(stmt)).scalars().all()
+        
+        # 构建评论树
+        comment_dict: Dict[int, CommentTreeInfo] = {}
+        root_comments: List[CommentTreeInfo] = []
+        
+        # 先创建所有评论的树状对象
+        for comment in all_comments:
+            comment_tree = CommentTreeInfo.model_validate(comment)
+            comment_tree.children = []
+            comment_dict[comment.id] = comment_tree
+        
+        # 构建父子关系
+        for comment in all_comments:
+            comment_tree = comment_dict[comment.id]
+            
+            if comment.parent_comment_id == 0:
+                # 根评论
+                comment_tree.level = 0
+                root_comments.append(comment_tree)
+            else:
+                # 子评论
+                parent = comment_dict.get(comment.parent_comment_id)
+                if parent and parent.level < max_level:
+                    comment_tree.level = parent.level + 1
+                    parent.children.append(comment_tree)
+        
+        # 限制每个评论的回复数量
+        for comment_tree in comment_dict.values():
+            if len(comment_tree.children) > max_replies_per_comment:
+                comment_tree.has_more_replies = True
+                comment_tree.children = comment_tree.children[:max_replies_per_comment]
+        
+        return root_comments
+
+    async def get_comment_replies(self, comment_id: int, pagination: PaginationParams) -> PaginationResult[CommentInfo]:
+        """获取评论的回复列表"""
+        stmt = select(Comment).where(
+            and_(
+                Comment.parent_comment_id == comment_id,
+                Comment.status == "NORMAL"
+            )
+        ).order_by(Comment.create_time.desc())
+
+        total_stmt = select(func.count()).select_from(stmt.subquery())
+        total = (await self.db.execute(total_stmt)).scalar()
+
+        stmt = stmt.offset(pagination.offset).limit(pagination.limit)
+        rows = (await self.db.execute(stmt)).scalars().all()
+        items = [CommentInfo.model_validate(r) for r in rows]
+        
+        return PaginationResult.create(items=items, total=total, page=pagination.page, page_size=pagination.page_size)
+
+    async def get_comment_count(self, comment_type: str, target_id: int) -> int:
+        """获取评论总数"""
+        stmt = select(func.count()).select_from(Comment).where(
+            and_(
+                Comment.comment_type == comment_type,
+                Comment.target_id == target_id,
+                Comment.status == "NORMAL"
+            )
+        )
+        return (await self.db.execute(stmt)).scalar()
 
