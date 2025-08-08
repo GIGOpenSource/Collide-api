@@ -26,7 +26,6 @@ class User(Base):
     role = Column(String(20), nullable=False, default='user', comment='角色：admin、user')
     login_count = Column(BigInteger, nullable=False, default=0, comment='登录次数')
     last_login_time = Column(DateTime, comment='最后登录时间')
-    last_login_ip = Column(String(45), comment='最后登录IP')
     create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment='创建时间')
     update_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(),
                         onupdate=func.current_timestamp(), comment='更新时间')
