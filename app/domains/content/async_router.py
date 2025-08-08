@@ -132,7 +132,7 @@ async def publish_content(
 @router.get("/", response_model=PaginationResponse[ContentInfo], summary="获取内容列表", description="支持多种筛选条件的内容列表查询")
 async def get_content_list(
     # 基础筛选参数
-    content_type: Optional[str] = Query(None, description="内容类型：NOVEL(小说)、COMIC(漫画)、VIDEO(视频)、ARTICLE(文章)、AUDIO(音频)"),
+    content_type: Optional[str] = Query(None, description="内容类型：NOVEL(小说)、COMIC(漫画)、LONG_VIDEO(长视频)、SHORT_VIDEO(短视频)、ARTICLE(文章)、AUDIO(音频)"),
     category_id: Optional[int] = Query(None, description="分类ID"),
     author_id: Optional[int] = Query(None, description="作者用户ID"),
     status: Optional[str] = Query(None, description="内容状态：DRAFT(草稿)、PUBLISHED(已发布)、OFFLINE(下线)"),
@@ -607,7 +607,7 @@ async def get_hot_contents(
 
 @router.get("/latest", response_model=PaginationResponse[ContentInfo])
 async def get_latest_contents(
-    content_type: Optional[str] = Query(None, description="内容类型"),
+    content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"),
     category_id: Optional[int] = Query(None, description="分类ID"),
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -630,7 +630,7 @@ async def get_latest_contents(
 
 @router.get("/recommended", response_model=PaginationResponse[ContentInfo])
 async def get_recommended_contents(
-    content_type: Optional[str] = Query(None, description="内容类型"),
+    content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"),
     category_id: Optional[int] = Query(None, description="分类ID"),
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -654,7 +654,7 @@ async def get_recommended_contents(
 
 @router.get("/trending", response_model=PaginationResponse[ContentInfo])
 async def get_trending_contents(
-    content_type: Optional[str] = Query(None, description="内容类型"),
+    content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"),
     category_id: Optional[int] = Query(None, description="分类ID"),
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(20, ge=1, le=100, description="每页数量"),

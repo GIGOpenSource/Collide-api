@@ -30,7 +30,7 @@ class ContentDataGenerator:
         self.engine = create_async_engine(async_database_url)
         self.AsyncSessionLocal = async_sessionmaker(bind=self.engine, class_=AsyncSession)
         
-        self.content_types = ["NOVEL", "COMIC", "VIDEO", "ARTICLE", "AUDIO"]
+        self.content_types = ["NOVEL", "COMIC", "LONG_VIDEO", "SHORT_VIDEO", "ARTICLE", "AUDIO"]
         self.content_statuses = ["DRAFT", "PUBLISHED", "OFFLINE"]
         self.review_statuses = ["PENDING", "APPROVED", "REJECTED"]
         self.payment_types = ["FREE", "COIN_PAY", "VIP_FREE", "TIME_LIMITED"]
@@ -65,8 +65,10 @@ class ContentDataGenerator:
                     title = fake.catch_phrase() + "传奇"
                 elif content_type == "COMIC":
                     title = fake.word() + "漫画"
-                elif content_type == "VIDEO":
-                    title = fake.sentence(nb_words=4)
+                elif content_type == "LONG_VIDEO":
+                    title = fake.sentence(nb_words=4) + "（长视频）"
+                elif content_type == "SHORT_VIDEO":
+                    title = fake.sentence(nb_words=3) + "（短视频）"
                 elif content_type == "ARTICLE":
                     title = fake.sentence(nb_words=6)
                 else:  # AUDIO
@@ -248,7 +250,8 @@ class ContentDataGenerator:
         extensions = {
             "NOVEL": "txt",
             "COMIC": "cbz",
-            "VIDEO": "mp4",
+            "LONG_VIDEO": "mp4",
+            "SHORT_VIDEO": "mp4",
             "ARTICLE": "html",
             "AUDIO": "mp3"
         }

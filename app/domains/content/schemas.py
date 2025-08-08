@@ -3,7 +3,7 @@
 用于 API 请求和响应的数据验证
 """
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel, Field
 
 
@@ -59,7 +59,9 @@ class ContentBase(BaseModel):
     """内容基础模型"""
     title: str = Field(..., max_length=200, description="内容标题")
     description: Optional[str] = Field(None, description="内容描述")
-    content_type: str = Field(..., description="内容类型")
+    content_type: Literal["NOVEL", "COMIC", "LONG_VIDEO", "SHORT_VIDEO", "ARTICLE", "AUDIO"] = Field(
+        ..., description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"
+    )
     content_data: Optional[str] = Field(None, max_length=500, description="内容数据URL")
     cover_url: Optional[str] = Field(None, max_length=500, description="封面图片URL")
     tags: Optional[str] = Field(None, description="标签，逗号分隔或JSON格式")
@@ -257,7 +259,9 @@ class UserContentPurchaseInfo(UserContentPurchaseBase):
 
 class ContentQueryParams(BaseModel):
     """内容查询参数"""
-    content_type: Optional[str] = Field(None, description="内容类型")
+    content_type: Optional[Literal["NOVEL", "COMIC", "LONG_VIDEO", "SHORT_VIDEO", "ARTICLE", "AUDIO"]] = Field(
+        None, description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"
+    )
     category_id: Optional[int] = Field(None, description="分类ID")
     author_id: Optional[int] = Field(None, description="作者ID")
     status: Optional[str] = Field(None, description="状态")
