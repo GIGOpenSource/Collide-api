@@ -167,8 +167,12 @@ async def get_content_list(
     # 排序和分页参数
     sort_by: str = Query("create_time", description="排序字段：create_time(创建时间), update_time(更新时间), publish_time(发布时间), view_count(浏览量), like_count(点赞数), favorite_count(收藏数), comment_count(评论数), score(评分)"),
     sort_order: str = Query("desc", description="排序方向：asc(升序), desc(降序)"),
-    page: int = Query(1, ge=1, description="页码，从1开始"),
-    size: int = Query(20, ge=1, le=100, description="每页显示数量，最大100"),
+    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
+    page: Optional[int] = Query(None, ge=1, description="页码，从1开始"),
+    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
+    size: Optional[int] = Query(None, ge=1, le=100, description="每页显示数量，最大100"),
+    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页显示数量(别名)"),
+    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页显示数量(别名)"),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -231,7 +235,9 @@ async def get_content_list(
         sort_by=sort_by,
         sort_order=sort_order
     )
-    pagination = PaginationParams(page=page, page_size=size)
+    effective_page = page or current_page or 1
+    effective_size = size or page_size or limit or 20
+    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取成功")
 
@@ -434,14 +440,20 @@ async def check_user_purchase(
 
 @router.get("/purchases/my", response_model=PaginationResponse[UserContentPurchaseInfo])
 async def get_my_purchases(
-    page: int = Query(1, ge=1, description="页码"),
-    size: int = Query(20, ge=1, le=100, description="每页数量"),
+    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
+    page: Optional[int] = Query(None, ge=1, description="页码"),
+    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
+    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
+    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
+    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
     current_user: UserContext = Depends(get_current_user_context),
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取我的购买记录"""
     service = ContentAsyncService(db)
-    pagination = PaginationParams(page=page, page_size=size)
+    effective_page = page or current_page or 1
+    effective_size = size or page_size or limit or 20
+    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_user_purchases(current_user.user_id, pagination)
     return PaginationResponse.from_pagination_result(result, "获取成功")
 
@@ -569,8 +581,12 @@ async def get_hot_contents(
     content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、VIDEO、ARTICLE、AUDIO"),
     category_id: Optional[int] = Query(None, description="分类ID"),
     days: int = Query(7, ge=1, le=365, description="统计天数，默认7天，最大365天"),
-    page: int = Query(1, ge=1, description="页码"),
-    size: int = Query(20, ge=1, le=100, description="每页数量"),
+    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
+    page: Optional[int] = Query(None, ge=1, description="页码"),
+    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
+    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
+    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
+    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -600,7 +616,9 @@ async def get_hot_contents(
         sort_by="view_count",  # 可以后续改为综合热度算法
         sort_order="desc"
     )
-    pagination = PaginationParams(page=page, page_size=size)
+    effective_page = page or current_page or 1
+    effective_size = size or page_size or limit or 20
+    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, f"获取{days}天内热门内容成功")
 
@@ -609,8 +627,12 @@ async def get_hot_contents(
 async def get_latest_contents(
     content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"),
     category_id: Optional[int] = Query(None, description="分类ID"),
-    page: int = Query(1, ge=1, description="页码"),
-    size: int = Query(20, ge=1, le=100, description="每页数量"),
+    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
+    page: Optional[int] = Query(None, ge=1, description="页码"),
+    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
+    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
+    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
+    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取最新内容 - 按发布时间排序"""
@@ -623,7 +645,9 @@ async def get_latest_contents(
         sort_by="publish_time",
         sort_order="desc"
     )
-    pagination = PaginationParams(page=page, page_size=size)
+    effective_page = page or current_page or 1
+    effective_size = size or page_size or limit or 20
+    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取最新内容成功")
 
@@ -632,8 +656,12 @@ async def get_latest_contents(
 async def get_recommended_contents(
     content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"),
     category_id: Optional[int] = Query(None, description="分类ID"),
-    page: int = Query(1, ge=1, description="页码"),
-    size: int = Query(20, ge=1, le=100, description="每页数量"),
+    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
+    page: Optional[int] = Query(None, ge=1, description="页码"),
+    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
+    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
+    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
+    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取推荐内容 - 按评分和热度排序"""
@@ -647,7 +675,9 @@ async def get_recommended_contents(
         sort_by="score",
         sort_order="desc"
     )
-    pagination = PaginationParams(page=page, page_size=size)
+    effective_page = page or current_page or 1
+    effective_size = size or page_size or limit or 20
+    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取推荐内容成功")
 
@@ -656,8 +686,12 @@ async def get_recommended_contents(
 async def get_trending_contents(
     content_type: Optional[str] = Query(None, description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"),
     category_id: Optional[int] = Query(None, description="分类ID"),
-    page: int = Query(1, ge=1, description="页码"),
-    size: int = Query(20, ge=1, le=100, description="每页数量"),
+    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
+    page: Optional[int] = Query(None, ge=1, description="页码"),
+    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
+    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
+    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
+    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取趋势内容 - 按点赞数排序"""
@@ -671,7 +705,9 @@ async def get_trending_contents(
         sort_by="like_count",
         sort_order="desc"
     )
-    pagination = PaginationParams(page=page, page_size=size)
+    effective_page = page or current_page or 1
+    effective_size = size or page_size or limit or 20
+    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取趋势内容成功")
 
@@ -683,8 +719,12 @@ async def search_contents(
     category_id: Optional[int] = Query(None, description="分类ID"),
     sort_by: str = Query("view_count", description="排序字段：create_time(创建时间), update_time(更新时间), publish_time(发布时间), view_count(浏览量), like_count(点赞数), favorite_count(收藏数), comment_count(评论数), score(评分)"),
     sort_order: str = Query("desc", description="排序方向：asc(升序), desc(降序)"),
-    page: int = Query(1, ge=1, description="页码"),
-    size: int = Query(20, ge=1, le=100, description="每页数量"),
+    # 分页参数（兼容多种命名：page/currentPage，pageSize/size/limit）
+    page: Optional[int] = Query(None, ge=1, description="页码"),
+    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
+    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
+    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
+    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -720,6 +760,8 @@ async def search_contents(
         sort_by=sort_by,
         sort_order=sort_order
     )
-    pagination = PaginationParams(page=page, page_size=size)
+    effective_page = page or current_page or 1
+    effective_size = size or page_size or limit or 20
+    pagination = PaginationParams(page=effective_page, page_size=effective_size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, f"搜索'{q}'的结果")
