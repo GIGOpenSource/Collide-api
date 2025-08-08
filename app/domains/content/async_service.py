@@ -36,7 +36,7 @@ class ContentAsyncService:
             content_type=content_data.content_type,
             category_id=content_data.category_id,
             author_id=user_id,
-            content=content_data.content,
+            content=content_data.content_data,
             cover_url=content_data.cover_url,
             tags=content_data.tags,
             status="DRAFT",
@@ -95,8 +95,8 @@ class ContentAsyncService:
             update_data["content_type"] = content_data.content_type
         if content_data.category_id is not None:
             update_data["category_id"] = content_data.category_id
-        if content_data.content is not None:
-            update_data["content"] = content_data.content
+        if content_data.content_data is not None:
+            update_data["content"] = content_data.content_data
         if content_data.cover_url is not None:
             update_data["cover_url"] = content_data.cover_url
         if content_data.tags is not None:
