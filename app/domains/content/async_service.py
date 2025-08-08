@@ -257,7 +257,7 @@ class ContentAsyncService:
 
         return pagination_result
 
-    @atomic_lock(lambda *args, **kwargs: f"content:stats:{kwargs.get('content_id')}")
+    @atomic_transaction()
     async def increment_content_stats(self, content_id: int, stat_type: str, increment_value: int = 1) -> bool:
         """增加内容统计数据 - 带分布式锁"""
         try:
@@ -286,7 +286,7 @@ class ContentAsyncService:
             await self.db.rollback()
             raise BusinessException(f"更新统计数据失败: {str(e)}")
 
-    @atomic_optimistic("t_content", "content_id")
+    @atomic_transaction()
     async def score_content(self, content_id: int, user_id: int, score_request: ScoreContentRequest) -> bool:
         """为内容评分 - 带乐观锁"""
         # 检查幂等性

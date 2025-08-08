@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     service_tags: Optional[str] = None
     
     model_config = {
-        "env_file": ".env",
+        "env_file": [".env", "config.docker.env"],
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
         "extra": "ignore"  # 忽略.env中未定义的额外字段
@@ -70,21 +70,29 @@ class Settings(BaseSettings):
 
 
 def load_settings() -> Settings:
-    """加载配置，如果.env文件不存在则给出友好提示"""
-    env_file_path = ".env"
+    """加载配置，支持多个配置文件"""
+    env_files = [".env", "config.docker.env"]
+    found_files = []
     
-    if not os.path.exists(env_file_path):
-        print(f"⚠️  配置文件 {env_file_path} 不存在")
-        print("请根据 config.example.env 创建配置文件：")
-        print("   cp config.example.env .env")
-        print("然后编辑 .env 文件配置相关参数")
-        raise FileNotFoundError(f"配置文件 {env_file_path} 不存在")
+    for env_file in env_files:
+        if os.path.exists(env_file):
+            found_files.append(env_file)
+    
+    if not found_files:
+        print("⚠️  配置文件不存在")
+        print("请创建以下配置文件之一：")
+        for env_file in env_files:
+            print(f"   - {env_file}")
+        print("或者根据 config.docker.env 创建 .env 文件")
+        raise FileNotFoundError("配置文件不存在")
+    
+    print(f"✅ 找到配置文件: {', '.join(found_files)}")
     
     try:
         return Settings()
     except Exception as e:
         print(f"❌ 加载配置文件失败: {e}")
-        print("请检查 .env 文件格式是否正确")
+        print("请检查配置文件格式是否正确")
         raise
 
 

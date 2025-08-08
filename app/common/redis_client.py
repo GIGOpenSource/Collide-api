@@ -233,6 +233,24 @@ class RedisClient:
         except Exception as e:
             logger.error(f"Redis LRANGE失败 name={name}: {e}")
             return []
+    
+    async def keys(self, pattern: str) -> List[str]:
+        """获取匹配模式的键"""
+        try:
+            async with self.redis_manager.get_redis() as redis:
+                return await redis.keys(pattern)
+        except Exception as e:
+            logger.error(f"Redis KEYS失败 pattern={pattern}: {e}")
+            return []
+    
+    async def incrby(self, key: str, amount: int = 1) -> int:
+        """递增计数器"""
+        try:
+            async with self.redis_manager.get_redis() as redis:
+                return await redis.incrby(key, amount)
+        except Exception as e:
+            logger.error(f"Redis INCRBY失败 key={key}: {e}")
+            return 0
 
 
 # 全局Redis管理器和客户端实例

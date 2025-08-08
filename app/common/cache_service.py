@@ -4,12 +4,15 @@
 """
 import json
 import hashlib
+import logging
 from typing import Optional, Any, Dict, List, Union
 from datetime import datetime, timedelta
 import asyncio
 from functools import wraps
 
 from app.common.redis_client import get_redis_client
+
+logger = logging.getLogger(__name__)
 
 
 class CacheService:
@@ -23,7 +26,7 @@ class CacheService:
     async def _get_redis(self):
         """获取Redis客户端"""
         if self.redis_client is None:
-            self.redis_client = await get_redis_client()
+            self.redis_client = get_redis_client()
         return self.redis_client
     
     def _generate_cache_key(self, prefix: str, *args, **kwargs) -> str:
@@ -61,17 +64,17 @@ class CacheService:
                 return json.loads(value)
             return None
         except Exception as e:
-            print(f"缓存获取失败: {e}")
+            logger.error(f"缓存获取失败: {e}")
             return None
     
     async def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
         """设置缓存"""
         try:
             redis = await self._get_redis()
-            await redis.setex(key, ttl, json.dumps(value, default=str))
+            await redis.set(key, json.dumps(value, default=str), ex=ttl)
             return True
         except Exception as e:
-            print(f"缓存设置失败: {e}")
+            logger.error(f"缓存设置失败: {e}")
             return False
     
     async def delete(self, key: str) -> bool:
@@ -81,7 +84,7 @@ class CacheService:
             await redis.delete(key)
             return True
         except Exception as e:
-            print(f"缓存删除失败: {e}")
+            logger.error(f"缓存删除失败: {e}")
             return False
     
     async def delete_pattern(self, pattern: str) -> bool:
@@ -93,7 +96,7 @@ class CacheService:
                 await redis.delete(*keys)
             return True
         except Exception as e:
-            print(f"批量删除缓存失败: {e}")
+            logger.error(f"批量删除缓存失败: {e}")
             return False
     
     async def exists(self, key: str) -> bool:
@@ -102,7 +105,7 @@ class CacheService:
             redis = await self._get_redis()
             return await redis.exists(key) > 0
         except Exception as e:
-            print(f"缓存检查失败: {e}")
+            logger.error(f"缓存检查失败: {e}")
             return False
     
     async def increment(self, key: str, amount: int = 1) -> Optional[int]:
@@ -111,7 +114,7 @@ class CacheService:
             redis = await self._get_redis()
             return await redis.incrby(key, amount)
         except Exception as e:
-            print(f"计数器递增失败: {e}")
+            logger.error(f"计数器递增失败: {e}")
             return None
     
     async def expire(self, key: str, ttl: int) -> bool:
@@ -120,7 +123,7 @@ class CacheService:
             redis = await self._get_redis()
             return await redis.expire(key, ttl)
         except Exception as e:
-            print(f"设置过期时间失败: {e}")
+            logger.error(f"设置过期时间失败: {e}")
             return False
     
     # ================ 业务缓存方法 ================
