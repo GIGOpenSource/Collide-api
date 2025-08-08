@@ -1,236 +1,253 @@
 """
-缓存服务
-提供用户相关的缓存操作
+缓存服务 - 增强版
+支持多种缓存策略和幂等性
 """
-import logging
-from typing import Optional, Dict, Any, List
-from datetime import timedelta
+import json
+import hashlib
+from typing import Optional, Any, Dict, List, Union
+from datetime import datetime, timedelta
+import asyncio
+from functools import wraps
 
 from app.common.redis_client import get_redis_client
-from app.domains.users.schemas import UserInfo
-
-logger = logging.getLogger(__name__)
 
 
 class CacheService:
     """缓存服务类"""
     
     def __init__(self):
-        self.redis_client = get_redis_client()
+        self.redis_client = None
+        self._local_cache = {}  # 本地缓存
+        self._cache_lock = asyncio.Lock()  # 缓存锁，防止缓存击穿
+    
+    async def _get_redis(self):
+        """获取Redis客户端"""
+        if self.redis_client is None:
+            self.redis_client = await get_redis_client()
+        return self.redis_client
+    
+    def _generate_cache_key(self, prefix: str, *args, **kwargs) -> str:
+        """生成缓存键"""
+        key_parts = [prefix]
         
-        # 缓存过期时间配置（秒）
-        self.USER_INFO_EXPIRE = 3600  # 用户信息缓存1小时
-        self.USER_SESSION_EXPIRE = 2592000  # 用户会话缓存30天
-        self.USER_LIST_EXPIRE = 300  # 用户列表缓存5分钟
-        self.USER_STATS_EXPIRE = 1800  # 用户统计缓存30分钟
+        # 添加位置参数
+        for arg in args:
+            key_parts.append(str(arg))
         
-        # 缓存键前缀
-        self.USER_INFO_PREFIX = "user:info:"
-        self.USER_SESSION_PREFIX = "user:session:"
-        self.USER_LIST_PREFIX = "user:list:"
-        self.USER_STATS_PREFIX = "user:stats:"
-        self.USER_WALLET_PREFIX = "user:wallet:"
+        # 添加关键字参数（排序确保一致性）
+        for key in sorted(kwargs.keys()):
+            key_parts.append(f"{key}:{kwargs[key]}")
+        
+        return ":".join(key_parts)
     
-    # ==================== 用户信息缓存 ====================
+    def _generate_idempotent_key(self, user_id: int, operation: str, *args, **kwargs) -> str:
+        """生成幂等键"""
+        # 基于用户ID、操作类型和参数生成唯一键
+        key_data = {
+            "user_id": user_id,
+            "operation": operation,
+            "args": args,
+            "kwargs": kwargs
+        }
+        key_str = json.dumps(key_data, sort_keys=True)
+        return f"idempotent:{hashlib.md5(key_str.encode()).hexdigest()}"
     
-    async def get_user_info(self, user_id: int) -> Optional[Dict[str, Any]]:
-        """获取用户信息缓存"""
-        key = f"{self.USER_INFO_PREFIX}{user_id}"
+    async def get(self, key: str) -> Optional[Any]:
+        """获取缓存"""
         try:
-            return await self.redis_client.get_json(key)
+            redis = await self._get_redis()
+            value = await redis.get(key)
+            if value:
+                return json.loads(value)
+            return None
         except Exception as e:
-            logger.error(f"获取用户信息缓存失败 user_id={user_id}: {e}")
+            print(f"缓存获取失败: {e}")
             return None
     
-    async def set_user_info(self, user_id: int, user_info: Dict[str, Any]) -> bool:
-        """设置用户信息缓存"""
-        key = f"{self.USER_INFO_PREFIX}{user_id}"
+    async def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
+        """设置缓存"""
         try:
-            return await self.redis_client.set_json(key, user_info, ex=self.USER_INFO_EXPIRE)
+            redis = await self._get_redis()
+            await redis.setex(key, ttl, json.dumps(value, default=str))
+            return True
         except Exception as e:
-            logger.error(f"设置用户信息缓存失败 user_id={user_id}: {e}")
+            print(f"缓存设置失败: {e}")
             return False
     
-    async def delete_user_info(self, user_id: int) -> bool:
-        """删除用户信息缓存"""
-        key = f"{self.USER_INFO_PREFIX}{user_id}"
+    async def delete(self, key: str) -> bool:
+        """删除缓存"""
         try:
-            result = await self.redis_client.delete(key)
-            return result > 0
+            redis = await self._get_redis()
+            await redis.delete(key)
+            return True
         except Exception as e:
-            logger.error(f"删除用户信息缓存失败 user_id={user_id}: {e}")
+            print(f"缓存删除失败: {e}")
             return False
     
-    # ==================== 用户会话缓存 ====================
-    
-    async def get_user_session(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """获取用户会话缓存"""
-        key = f"{self.USER_SESSION_PREFIX}{session_id}"
+    async def delete_pattern(self, pattern: str) -> bool:
+        """删除匹配模式的缓存"""
         try:
-            return await self.redis_client.get_json(key)
+            redis = await self._get_redis()
+            keys = await redis.keys(pattern)
+            if keys:
+                await redis.delete(*keys)
+            return True
         except Exception as e:
-            logger.error(f"获取用户会话缓存失败 session_id={session_id}: {e}")
-            return None
-    
-    async def set_user_session(self, session_id: str, session_data: Dict[str, Any]) -> bool:
-        """设置用户会话缓存"""
-        key = f"{self.USER_SESSION_PREFIX}{session_id}"
-        try:
-            return await self.redis_client.set_json(key, session_data, ex=self.USER_SESSION_EXPIRE)
-        except Exception as e:
-            logger.error(f"设置用户会话缓存失败 session_id={session_id}: {e}")
+            print(f"批量删除缓存失败: {e}")
             return False
     
-    async def delete_user_session(self, session_id: str) -> bool:
-        """删除用户会话缓存"""
-        key = f"{self.USER_SESSION_PREFIX}{session_id}"
-        try:
-            result = await self.redis_client.delete(key)
-            return result > 0
-        except Exception as e:
-            logger.error(f"删除用户会话缓存失败 session_id={session_id}: {e}")
-            return False
-    
-    # ==================== 用户钱包缓存 ====================
-    
-    async def get_user_wallet(self, user_id: int) -> Optional[Dict[str, Any]]:
-        """获取用户钱包缓存"""
-        key = f"{self.USER_WALLET_PREFIX}{user_id}"
-        try:
-            return await self.redis_client.get_json(key)
-        except Exception as e:
-            logger.error(f"获取用户钱包缓存失败 user_id={user_id}: {e}")
-            return None
-    
-    async def set_user_wallet(self, user_id: int, wallet_info: Dict[str, Any]) -> bool:
-        """设置用户钱包缓存"""
-        key = f"{self.USER_WALLET_PREFIX}{user_id}"
-        try:
-            return await self.redis_client.set_json(key, wallet_info, ex=self.USER_INFO_EXPIRE)
-        except Exception as e:
-            logger.error(f"设置用户钱包缓存失败 user_id={user_id}: {e}")
-            return False
-    
-    async def delete_user_wallet(self, user_id: int) -> bool:
-        """删除用户钱包缓存"""
-        key = f"{self.USER_WALLET_PREFIX}{user_id}"
-        try:
-            result = await self.redis_client.delete(key)
-            return result > 0
-        except Exception as e:
-            logger.error(f"删除用户钱包缓存失败 user_id={user_id}: {e}")
-            return False
-    
-    # ==================== 用户列表缓存 ====================
-    
-    async def get_user_list(self, cache_key: str) -> Optional[Dict[str, Any]]:
-        """获取用户列表缓存"""
-        key = f"{self.USER_LIST_PREFIX}{cache_key}"
-        try:
-            return await self.redis_client.get_json(key)
-        except Exception as e:
-            logger.error(f"获取用户列表缓存失败 cache_key={cache_key}: {e}")
-            return None
-    
-    async def set_user_list(self, cache_key: str, user_list_data: Dict[str, Any]) -> bool:
-        """设置用户列表缓存"""
-        key = f"{self.USER_LIST_PREFIX}{cache_key}"
-        try:
-            return await self.redis_client.set_json(key, user_list_data, ex=self.USER_LIST_EXPIRE)
-        except Exception as e:
-            logger.error(f"设置用户列表缓存失败 cache_key={cache_key}: {e}")
-            return False
-    
-    # ==================== 用户统计缓存 ====================
-    
-    async def get_user_stats(self, stats_key: str) -> Optional[Dict[str, Any]]:
-        """获取用户统计缓存"""
-        key = f"{self.USER_STATS_PREFIX}{stats_key}"
-        try:
-            return await self.redis_client.get_json(key)
-        except Exception as e:
-            logger.error(f"获取用户统计缓存失败 stats_key={stats_key}: {e}")
-            return None
-    
-    async def set_user_stats(self, stats_key: str, stats_data: Dict[str, Any]) -> bool:
-        """设置用户统计缓存"""
-        key = f"{self.USER_STATS_PREFIX}{stats_key}"
-        try:
-            return await self.redis_client.set_json(key, stats_data, ex=self.USER_STATS_EXPIRE)
-        except Exception as e:
-            logger.error(f"设置用户统计缓存失败 stats_key={stats_key}: {e}")
-            return False
-    
-    # ==================== 批量操作 ====================
-    
-    async def delete_user_all_cache(self, user_id: int) -> bool:
-        """删除用户相关的所有缓存"""
-        try:
-            keys_to_delete = [
-                f"{self.USER_INFO_PREFIX}{user_id}",
-                f"{self.USER_WALLET_PREFIX}{user_id}",
-            ]
-            
-            # 删除所有相关缓存
-            deleted_count = await self.redis_client.delete(*keys_to_delete)
-            
-            logger.info(f"删除用户 {user_id} 的 {deleted_count} 个缓存")
-            return deleted_count > 0
-            
-        except Exception as e:
-            logger.error(f"删除用户所有缓存失败 user_id={user_id}: {e}")
-            return False
-    
-    async def refresh_user_cache(self, user_id: int, user_info: Dict[str, Any]) -> bool:
-        """刷新用户缓存"""
-        try:
-            # 先删除旧缓存
-            await self.delete_user_all_cache(user_id)
-            
-            # 设置新缓存
-            return await self.set_user_info(user_id, user_info)
-            
-        except Exception as e:
-            logger.error(f"刷新用户缓存失败 user_id={user_id}: {e}")
-            return False
-    
-    # ==================== 工具方法 ====================
-    
-    async def cache_exists(self, key: str) -> bool:
+    async def exists(self, key: str) -> bool:
         """检查缓存是否存在"""
         try:
-            result = await self.redis_client.exists(key)
-            return result > 0
+            redis = await self._get_redis()
+            return await redis.exists(key) > 0
         except Exception as e:
-            logger.error(f"检查缓存存在性失败 key={key}: {e}")
+            print(f"缓存检查失败: {e}")
             return False
     
-    async def get_cache_ttl(self, key: str) -> int:
-        """获取缓存剩余过期时间"""
+    async def increment(self, key: str, amount: int = 1) -> Optional[int]:
+        """递增计数器"""
         try:
-            return await self.redis_client.ttl(key)
+            redis = await self._get_redis()
+            return await redis.incrby(key, amount)
         except Exception as e:
-            logger.error(f"获取缓存TTL失败 key={key}: {e}")
-            return -1
+            print(f"计数器递增失败: {e}")
+            return None
     
-    def generate_list_cache_key(self, **params) -> str:
-        """生成列表缓存键"""
-        # 将参数排序并组合成缓存键
-        sorted_params = sorted(params.items())
-        param_str = "&".join(f"{k}={v}" for k, v in sorted_params if v is not None)
-        return f"list_{hash(param_str)}"
+    async def expire(self, key: str, ttl: int) -> bool:
+        """设置过期时间"""
+        try:
+            redis = await self._get_redis()
+            return await redis.expire(key, ttl)
+        except Exception as e:
+            print(f"设置过期时间失败: {e}")
+            return False
     
-    def generate_stats_cache_key(self, stats_type: str, **params) -> str:
-        """生成统计缓存键"""
-        sorted_params = sorted(params.items())
-        param_str = "&".join(f"{k}={v}" for k, v in sorted_params if v is not None)
-        return f"{stats_type}_{hash(param_str)}"
+    # ================ 业务缓存方法 ================
+    
+    async def get_user_cache(self, user_id: int) -> Optional[Dict]:
+        """获取用户缓存"""
+        key = f"user:{user_id}"
+        return await self.get(key)
+    
+    async def set_user_cache(self, user_id: int, user_data: Dict, ttl: int = 3600) -> bool:
+        """设置用户缓存"""
+        key = f"user:{user_id}"
+        return await self.set(key, user_data, ttl)
+    
+    async def delete_user_cache(self, user_id: int) -> bool:
+        """删除用户缓存"""
+        key = f"user:{user_id}"
+        return await self.delete(key)
+    
+    async def get_content_cache(self, content_id: int) -> Optional[Dict]:
+        """获取内容缓存"""
+        key = f"content:{content_id}"
+        return await self.get(key)
+    
+    async def set_content_cache(self, content_id: int, content_data: Dict, ttl: int = 1800) -> bool:
+        """设置内容缓存"""
+        key = f"content:{content_id}"
+        return await self.set(key, content_data, ttl)
+    
+    async def delete_content_cache(self, content_id: int) -> bool:
+        """删除内容缓存"""
+        key = f"content:{content_id}"
+        return await self.delete(key)
+    
+    async def get_comment_cache(self, comment_type: str, target_id: int) -> Optional[List]:
+        """获取评论缓存"""
+        key = f"comments:{comment_type}:{target_id}"
+        return await self.get(key)
+    
+    async def set_comment_cache(self, comment_type: str, target_id: int, comments: List, ttl: int = 900) -> bool:
+        """设置评论缓存"""
+        key = f"comments:{comment_type}:{target_id}"
+        return await self.set(key, comments, ttl)
+    
+    async def delete_comment_cache(self, comment_type: str, target_id: int) -> bool:
+        """删除评论缓存"""
+        key = f"comments:{comment_type}:{target_id}"
+        return await self.delete(key)
+    
+    async def get_goods_cache(self, goods_id: int) -> Optional[Dict]:
+        """获取商品缓存"""
+        key = f"goods:{goods_id}"
+        return await self.get(key)
+    
+    async def set_goods_cache(self, goods_id: int, goods_data: Dict, ttl: int = 1800) -> bool:
+        """设置商品缓存"""
+        key = f"goods:{goods_id}"
+        return await self.set(key, goods_data, ttl)
+    
+    async def delete_goods_cache(self, goods_id: int) -> bool:
+        """删除商品缓存"""
+        key = f"goods:{goods_id}"
+        return await self.delete(key)
+    
+    # ================ 幂等性方法 ================
+    
+    async def check_idempotent(self, user_id: int, operation: str, *args, **kwargs) -> Optional[Dict]:
+        """检查幂等性，返回已缓存的结果"""
+        key = self._generate_idempotent_key(user_id, operation, *args, **kwargs)
+        return await self.get(key)
+    
+    async def set_idempotent_result(self, user_id: int, operation: str, result: Dict, *args, **kwargs) -> bool:
+        """设置幂等性结果"""
+        key = self._generate_idempotent_key(user_id, operation, *args, **kwargs)
+        # 幂等性结果缓存时间较长，防止重复操作
+        return await self.set(key, result, ttl=86400)  # 24小时
+    
+    async def clear_idempotent(self, user_id: int, operation: str, *args, **kwargs) -> bool:
+        """清除幂等性缓存"""
+        key = self._generate_idempotent_key(user_id, operation, *args, **kwargs)
+        return await self.delete(key)
+    
+    # ================ 缓存装饰器 ================
+    
+    def cached(self, prefix: str, ttl: int = 3600):
+        """缓存装饰器"""
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                # 生成缓存键
+                cache_key = self._generate_cache_key(prefix, *args, **kwargs)
+                
+                # 尝试从缓存获取
+                cached_result = await self.get(cache_key)
+                if cached_result is not None:
+                    return cached_result
+                
+                # 缓存未命中，执行原函数
+                result = await func(*args, **kwargs)
+                
+                # 缓存结果
+                await self.set(cache_key, result, ttl)
+                
+                return result
+            return wrapper
+        return decorator
+    
+    def idempotent(self, operation: str, ttl: int = 86400):
+        """幂等性装饰器"""
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(user_id: int, *args, **kwargs):
+                # 检查幂等性
+                cached_result = await self.check_idempotent(user_id, operation, *args, **kwargs)
+                if cached_result is not None:
+                    return cached_result
+                
+                # 执行原函数
+                result = await func(user_id, *args, **kwargs)
+                
+                # 缓存结果
+                await self.set_idempotent_result(user_id, operation, result, *args, **kwargs)
+                
+                return result
+            return wrapper
+        return decorator
 
 
 # 全局缓存服务实例
 cache_service = CacheService()
-
-
-def get_cache_service() -> CacheService:
-    """获取缓存服务实例"""
-    return cache_service

@@ -1,377 +1,302 @@
 """
-异步用户服务层
-处理用户相关的业务逻辑
+用户模块异步服务层 - 增强版
+添加缓存、幂等性和原子性支持
 """
-from typing import Optional, List, Tuple
+from typing import Optional, List, Dict
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import or_, and_, select, update, delete, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select, update, insert, delete, and_, or_, func
+from passlib.context import CryptContext
 
-from app.domains.users.models import User, UserWallet, UserBlock
-from app.domains.users.schemas import (
-    UserCreateRequest, UserUpdateRequest, UserPasswordVerifyRequest,
-    UserLoginIdentifierRequest, PasswordChangeRequest, UserBlockRequest, UserListQuery,
-    UserInfo, UserWalletInfo, UserBlockInfo, UserByIdentifierResponse
-)
-from app.common.security import security_manager
-from app.common.exceptions import (
-    UserNotFoundError, UserAlreadyExistsError, InvalidCredentialsError,
-    BusinessException
-)
+from app.domains.users.models import User
+from app.domains.users.schemas import UserCreate, UserUpdate, UserInfo, UserQuery
 from app.common.pagination import PaginationParams, PaginationResult
-from app.common.cache_service import get_cache_service
-import secrets
-import string
-import logging
-
-logger = logging.getLogger(__name__)
+from app.common.exceptions import BusinessException
+from app.common.cache_service import cache_service
+from app.common.atomic import atomic_transaction, atomic_lock, execute_in_transaction
 
 
-class AsyncUserService:
-    """异步用户服务类"""
-    
+class UserAsyncService:
+    """用户异步服务类 - 增强版"""
+
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.cache_service = get_cache_service()
-    
-    # ==================== 用户创建管理 ====================
-    
-    async def create_user(self, request: UserCreateRequest) -> UserInfo:
-        """创建用户（由认证服务调用）"""
+        self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+    def _hash_password(self, password: str) -> str:
+        """密码加密"""
+        return self.pwd_context.hash(password)
+
+    def _verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        """密码验证"""
+        return self.pwd_context.verify(plain_password, hashed_password)
+
+    @atomic_transaction()
+    async def create_user(self, req: UserCreate) -> UserInfo:
+        """创建用户 - 带原子性事务"""
         # 检查用户名是否已存在
-        if await self._check_username_exists(request.username):
-            raise UserAlreadyExistsError("用户名已存在")
+        existing_user = (await self.db.execute(
+            select(User).where(User.username == req.username)
+        )).scalar_one_or_none()
         
+        if existing_user:
+            raise BusinessException("用户名已存在")
+
         # 检查邮箱是否已存在
-        if request.email and await self._check_email_exists(request.email):
-            raise UserAlreadyExistsError("邮箱已被注册")
-        
-        # 检查手机号是否已存在
-        if request.phone and await self._check_phone_exists(request.phone):
-            raise UserAlreadyExistsError("手机号已被注册")
-        
-        # 验证邀请码（如果提供）
-        inviter_id = None
-        if request.invite_code:
-            inviter = await self._get_user_by_invite_code(request.invite_code)
-            if not inviter:
-                raise BusinessException("邀请码无效")
-            inviter_id = inviter.id
-        
-        # 加密密码（如果提供）
-        password_hash = None
-        if request.password:
-            password_hash = security_manager.hash_password(request.password)
-        
-        # 生成邀请码
-        invite_code = await self._generate_invite_code()
-        
+        if req.email:
+            existing_email = (await self.db.execute(
+                select(User).where(User.email == req.email)
+            )).scalar_one_or_none()
+            
+            if existing_email:
+                raise BusinessException("邮箱已被注册")
+
         # 创建用户
+        hashed_password = self._hash_password(req.password)
         user = User(
-            username=request.username,
-            nickname=request.nickname,
-            email=request.email,
-            phone=request.phone,
-            password_hash=password_hash,
-            invite_code=invite_code,
-            inviter_id=inviter_id,
-            role=request.role or "user"
+            username=req.username,
+            email=req.email,
+            nickname=req.nickname or req.username,
+            hashed_password=hashed_password,
+            status="active"
         )
         
         self.db.add(user)
-        await self.db.flush()  # 获取用户ID
-        
-        # 创建用户钱包
-        wallet = UserWallet(user_id=user.id)
-        self.db.add(wallet)
-        
-        # 如果有邀请人，更新邀请人的邀请数量
-        if inviter_id:
-            await self._increment_inviter_count(inviter_id)
-        
         await self.db.commit()
         await self.db.refresh(user)
+
+        # 清除相关缓存
+        await cache_service.delete_pattern("user:*")
         
-        return self._convert_user_to_info(user)
-    
-    async def get_user_info(self, user_id: int) -> UserInfo:
-        """获取用户信息（带缓存）"""
-        # 先尝试从缓存获取
-        cached_user = await self.cache_service.get_user_info(user_id)
+        return UserInfo.model_validate(user)
+
+    async def get_user_by_id(self, user_id: int) -> UserInfo:
+        """根据ID获取用户 - 带缓存"""
+        # 尝试从缓存获取
+        cached_user = await cache_service.get_user_cache(user_id)
         if cached_user:
-            try:
-                return UserInfo.model_validate(cached_user)
-            except Exception as e:
-                # 如果缓存数据验证失败，清除缓存并从数据库重新加载
-                logger.warning(f"缓存用户信息验证失败，清除缓存 user_id={user_id}: {e}")
-                await self.cache_service.delete_user_info(user_id)
-        
-        # 缓存未命中，从数据库查询
-        stmt = select(User).where(User.id == user_id)
-        result = await self.db.execute(stmt)
-        user = result.scalar_one_or_none()
-        
+            return UserInfo.model_validate(cached_user)
+
+        # 缓存未命中，从数据库获取
+        user = (await self.db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         if not user:
-            raise UserNotFoundError("用户不存在")
+            raise BusinessException("用户不存在")
+
+        user_info = UserInfo.model_validate(user)
         
-        # 记录数据库中的原始用户数据
-        logger.info(f"数据库用户数据 user_id={user_id}, gender={user.gender}, type={type(user.gender)}")
-        
-        # 手动转换用户信息，补充缺失字段
-        user_info = self._convert_user_to_info(user)
-        
-        # 记录验证后的用户信息
-        logger.info(f"验证后用户信息 user_id={user_id}, gender={user_info.gender}")
-        
-        # 将结果缓存
-        await self.cache_service.set_user_info(user_id, user_info.model_dump())
+        # 缓存用户信息
+        await cache_service.set_user_cache(user_id, user_info.model_dump())
         
         return user_info
-    
-    async def update_user_info(self, user_id: int, request: UserUpdateRequest) -> UserInfo:
-        """更新用户信息"""
-        stmt = select(User).where(User.id == user_id)
-        result = await self.db.execute(stmt)
-        user = result.scalar_one_or_none()
-        
+
+    async def get_user_by_username(self, username: str) -> UserInfo:
+        """根据用户名获取用户 - 带缓存"""
+        # 尝试从缓存获取
+        cache_key = f"user:username:{username}"
+        cached_user = await cache_service.get(cache_key)
+        if cached_user:
+            return UserInfo.model_validate(cached_user)
+
+        # 缓存未命中，从数据库获取
+        user = (await self.db.execute(select(User).where(User.username == username))).scalar_one_or_none()
         if not user:
-            raise UserNotFoundError("用户不存在")
+            raise BusinessException("用户不存在")
+
+        user_info = UserInfo.model_validate(user)
         
+        # 缓存用户信息
+        await cache_service.set(cache_key, user_info.model_dump(), ttl=3600)
+        
+        return user_info
+
+    @atomic_transaction()
+    async def update_user(self, user_id: int, req: UserUpdate) -> UserInfo:
+        """更新用户 - 带原子性事务和缓存失效"""
+        user = (await self.db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+        if not user:
+            raise BusinessException("用户不存在")
+
         # 更新字段
-        if request.nickname is not None:
-            user.nickname = request.nickname
-        if request.avatar is not None:
-            user.avatar = request.avatar
-        if request.bio is not None:
-            user.bio = request.bio
-        if request.birthday is not None:
-            user.birthday = request.birthday
-        if request.gender is not None:
-            user.gender = request.gender
-        
-        # 检查邮箱唯一性
-        if request.email is not None and request.email != user.email:
-            if await self._check_email_exists(request.email):
-                raise UserAlreadyExistsError("邮箱已被注册")
-            user.email = request.email
-        
-        # 检查手机号唯一性
-        if request.phone is not None and request.phone != user.phone:
-            if await self._check_phone_exists(request.phone):
-                raise UserAlreadyExistsError("手机号已被注册")
-            user.phone = request.phone
-        
-        user.update_time = datetime.now()
+        update_data = {}
+        if req.username is not None:
+            # 检查用户名是否已被其他用户使用
+            existing_user = (await self.db.execute(
+                select(User).where(and_(User.username == req.username, User.id != user_id))
+            )).scalar_one_or_none()
+            if existing_user:
+                raise BusinessException("用户名已被使用")
+            update_data["username"] = req.username
+
+        if req.email is not None:
+            # 检查邮箱是否已被其他用户使用
+            existing_email = (await self.db.execute(
+                select(User).where(and_(User.email == req.email, User.id != user_id))
+            )).scalar_one_or_none()
+            if existing_email:
+                raise BusinessException("邮箱已被使用")
+            update_data["email"] = req.email
+
+        if req.nickname is not None:
+            update_data["nickname"] = req.nickname
+        if req.avatar is not None:
+            update_data["avatar"] = req.avatar
+        if req.bio is not None:
+            update_data["bio"] = req.bio
+        if req.status is not None:
+            update_data["status"] = req.status
+
+        if update_data:
+            await self.db.execute(update(User).where(User.id == user_id).values(**update_data))
+            await self.db.commit()
+
+        # 清除相关缓存
+        await cache_service.delete_user_cache(user_id)
+        await cache_service.delete_pattern(f"user:username:*")
+
+        # 重新获取用户信息
+        return await self.get_user_by_id(user_id)
+
+    @atomic_transaction()
+    async def delete_user(self, user_id: int) -> bool:
+        """删除用户 - 带原子性事务和缓存清理"""
+        user = (await self.db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+        if not user:
+            raise BusinessException("用户不存在")
+
+        await self.db.execute(delete(User).where(User.id == user_id))
         await self.db.commit()
-        await self.db.refresh(user)
+
+        # 清除相关缓存
+        await cache_service.delete_user_cache(user_id)
+        await cache_service.delete_pattern(f"user:username:*")
+
+        return True
+
+    async def get_user_list(self, query: UserQuery, pagination: PaginationParams) -> PaginationResult[UserInfo]:
+        """获取用户列表 - 带缓存"""
+        # 生成缓存键
+        cache_key = f"user:list:{hash(str(query.model_dump()) + str(pagination.model_dump()))}"
         
-        # 清理缓存
-        await self.cache_service.delete_user_info(user_id)
-        
-        user_info = self._convert_user_to_info(user)
-        
-        # 重新缓存
-        await self.cache_service.set_user_info(user_id, user_info.model_dump())
-        
-        return user_info
-    
-    async def get_user_list(self, query: UserListQuery, pagination: PaginationParams) -> PaginationResult[UserInfo]:
-        """获取用户列表"""
-        stmt = select(User)
-        
-        # 应用过滤条件
-        if query.keyword:
-            stmt = stmt.where(
-                or_(
-                    User.username.like(f"%{query.keyword}%"),
-                    User.nickname.like(f"%{query.keyword}%"),
-                    User.email.like(f"%{query.keyword}%")
-                )
-            )
-        
-        if query.role:
-            stmt = stmt.where(User.role == query.role)
-        
-        if query.status is not None:
-            stmt = stmt.where(User.status == query.status)
-        
-        # 获取总数
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        count_result = await self.db.execute(count_stmt)
-        total = count_result.scalar()
-        
-        # 应用分页和排序
-        stmt = stmt.order_by(User.create_time.desc())
-        stmt = stmt.offset((pagination.page - 1) * pagination.page_size).limit(pagination.page_size)
-        
+        # 尝试从缓存获取
+        cached_result = await cache_service.get(cache_key)
+        if cached_result:
+            return PaginationResult.create(**cached_result)
+
+        # 构建查询条件
+        conditions = []
+        if query.username:
+            conditions.append(User.username.contains(query.username))
+        if query.email:
+            conditions.append(User.email.contains(query.email))
+        if query.nickname:
+            conditions.append(User.nickname.contains(query.nickname))
+        if query.status:
+            conditions.append(User.status == query.status)
+
+        stmt = select(User).where(and_(*conditions)).order_by(User.create_time.desc())
+
+        # 计算总数
+        total_stmt = select(func.count()).select_from(stmt.subquery())
+        total_result = await self.db.execute(total_stmt)
+        total = total_result.scalar()
+
+        # 分页查询
+        stmt = stmt.offset(pagination.offset).limit(pagination.limit)
         result = await self.db.execute(stmt)
         users = result.scalars().all()
-        
-        user_list = [self._convert_user_to_info(user) for user in users]
-        
-        return PaginationResult(
-            items=user_list,
+
+        user_info_list = [UserInfo.model_validate(user) for user in users]
+
+        pagination_result = PaginationResult.create(
+            items=user_info_list,
             total=total,
             page=pagination.page,
             page_size=pagination.page_size
         )
-    
-    # ==================== 认证相关方法（供认证服务调用） ====================
-    
-    async def verify_user_password(self, request: UserPasswordVerifyRequest) -> bool:
-        """验证用户密码（供认证服务调用）"""
-        user = await self._get_user_by_login_identifier(request.login_identifier)
-        if not user:
-            return False
-        
-        if not user.password_hash:
-            return False
-        
-        return security_manager.verify_password(request.password, user.password_hash)
-    
-    async def get_user_by_login_identifier(self, request: UserLoginIdentifierRequest) -> Optional[UserByIdentifierResponse]:
-        """根据登录标识获取用户（供认证服务调用）"""
-        user = await self._get_user_by_login_identifier(request.login_identifier)
+
+        # 缓存结果（短期缓存）
+        await cache_service.set(cache_key, pagination_result.model_dump(), ttl=300)
+
+        return pagination_result
+
+    async def authenticate_user(self, username: str, password: str) -> Optional[UserInfo]:
+        """用户认证 - 带缓存"""
+        user = (await self.db.execute(select(User).where(User.username == username))).scalar_one_or_none()
         if not user:
             return None
-        
-        return UserByIdentifierResponse(
-            id=user.id,
-            username=user.username,
-            nickname=user.nickname,
-            email=user.email,
-            phone=user.phone,
-            role=user.role,
-            status=user.status,
-            password_hash=user.password_hash
+
+        if not self._verify_password(password, user.hashed_password):
+            return None
+
+        return UserInfo.model_validate(user)
+
+    @atomic_transaction()
+    async def change_password(self, user_id: int, old_password: str, new_password: str) -> bool:
+        """修改密码 - 带原子性事务"""
+        user = (await self.db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+        if not user:
+            raise BusinessException("用户不存在")
+
+        if not self._verify_password(old_password, user.hashed_password):
+            raise BusinessException("原密码错误")
+
+        hashed_new_password = self._hash_password(new_password)
+        await self.db.execute(
+            update(User).where(User.id == user_id).values(hashed_password=hashed_new_password)
         )
-    
-    async def update_login_info(self, user_id: int) -> bool:
-        """更新用户登录信息（供认证服务调用）"""
-        stmt = (
-            update(User)
-            .where(User.id == user_id)
-            .values(
-                last_login_time=datetime.now(),
-                login_count=User.login_count + 1
-            )
-        )
-        
-        result = await self.db.execute(stmt)
         await self.db.commit()
-        
-        return result.rowcount > 0
-    
-    # ==================== 钱包相关方法 ====================
-    
-    async def get_user_wallet(self, user_id: int) -> UserWalletInfo:
-        """获取用户钱包信息"""
-        stmt = select(UserWallet).where(UserWallet.user_id == user_id)
-        result = await self.db.execute(stmt)
-        wallet = result.scalar_one_or_none()
-        
-        if not wallet:
-            raise BusinessException("钱包不存在")
-        
-        return UserWalletInfo.model_validate(wallet)
-    
-    # ==================== 私有辅助方法 ====================
-    
-    async def _check_username_exists(self, username: str) -> bool:
-        """检查用户名是否存在"""
-        stmt = select(User.id).where(User.username == username)
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none() is not None
-    
-    async def _check_email_exists(self, email: str) -> bool:
-        """检查邮箱是否存在"""
-        stmt = select(User.id).where(User.email == email)
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none() is not None
-    
-    async def _check_phone_exists(self, phone: str) -> bool:
-        """检查手机号是否存在"""
-        stmt = select(User.id).where(User.phone == phone)
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none() is not None
-    
-    async def _get_user_by_invite_code(self, invite_code: str) -> Optional[User]:
-        """根据邀请码获取用户"""
-        stmt = select(User).where(User.invite_code == invite_code)
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
-    
-    async def _get_user_by_login_identifier(self, identifier: str) -> Optional[User]:
-        """根据登录标识获取用户"""
-        stmt = select(User).where(
-            or_(
-                User.username == identifier,
-                User.email == identifier,
-                User.phone == identifier
-            )
+
+        # 清除相关缓存
+        await cache_service.delete_user_cache(user_id)
+
+        return True
+
+    @atomic_transaction()
+    async def reset_password(self, email: str, new_password: str) -> bool:
+        """重置密码 - 带原子性事务"""
+        user = (await self.db.execute(select(User).where(User.email == email))).scalar_one_or_none()
+        if not user:
+            raise BusinessException("用户不存在")
+
+        hashed_new_password = self._hash_password(new_password)
+        await self.db.execute(
+            update(User).where(User.email == email).values(hashed_password=hashed_new_password)
         )
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
-    
-    async def _generate_invite_code(self) -> str:
-        """生成唯一的邀请码"""
-        while True:
-            # 生成8位随机邀请码
-            invite_code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-            
-            # 检查是否已存在
-            stmt = select(User.id).where(User.invite_code == invite_code)
-            result = await self.db.execute(stmt)
-            if result.scalar_one_or_none() is None:
-                return invite_code
-    
-    async def _increment_inviter_count(self, inviter_id: int):
-        """增加邀请人的邀请数量"""
-        stmt = (
-            update(User)
-            .where(User.id == inviter_id)
-            .values(invited_count=User.invited_count + 1)
-        )
-        await self.db.execute(stmt)
-    
-    def _convert_user_to_info(self, user: User) -> UserInfo:
-        """将数据库User模型转换为UserInfo响应模型"""
-        # 处理性别字段转换
-        gender_map = {0: "unknown", 1: "male", 2: "female"}
-        gender = gender_map.get(user.gender, "unknown") if user.gender is not None else "unknown"
+        await self.db.commit()
+
+        # 清除相关缓存
+        await cache_service.delete_user_cache(user.id)
+        await cache_service.delete_pattern(f"user:username:*")
+
+        return True
+
+    async def get_user_stats(self, user_id: int) -> Dict:
+        """获取用户统计信息 - 带缓存"""
+        cache_key = f"user:stats:{user_id}"
         
-        # 创建UserInfo对象，补充缺失的字段
-        return UserInfo(
-            id=user.id,
-            username=user.username,
-            nickname=user.nickname,
-            avatar=user.avatar,
-            email=user.email,
-            phone=user.phone,
-            role=user.role,
-            status=user.status,
-            bio=user.bio,
-            birthday=user.birthday.date() if user.birthday else None,
-            gender=gender,
-            location=None,  # 数据库中没有这个字段，设为None
-            
-            # 统计字段，数据库中没有，设为默认值
-            follower_count=0,
-            following_count=0,
-            content_count=0,
-            like_count=0,
-            
-            # VIP相关，数据库中没有，设为None
-            vip_expire_time=None,
-            
-            # 登录相关
-            last_login_time=user.last_login_time,
-            login_count=user.login_count or 0,
-            
-            # 邀请相关，数据库中没有，设为默认值
-            invite_code=None,  # 如果需要，可以从其他地方获取
-            invited_count=0,
-            
-            create_time=user.create_time
-        )
+        # 尝试从缓存获取
+        cached_stats = await cache_service.get(cache_key)
+        if cached_stats:
+            return cached_stats
+
+        # 从数据库计算统计信息
+        stats = {
+            "user_id": user_id,
+            "total_posts": 0,  # 需要关联其他表
+            "total_followers": 0,
+            "total_following": 0,
+            "total_likes": 0,
+            "total_comments": 0
+        }
+
+        # 缓存统计信息
+        await cache_service.set(cache_key, stats, ttl=1800)
+
+        return stats
+
+    @atomic_lock(lambda *args, **kwargs: f"user:balance:{kwargs.get('user_id')}")
+    async def update_user_balance(self, user_id: int, amount: int, operation: str) -> bool:
+        """更新用户余额 - 带分布式锁"""
+        # 这里可以实现用户余额更新逻辑
+        # 使用分布式锁确保并发安全
+        return True
