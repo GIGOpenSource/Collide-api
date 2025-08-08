@@ -93,7 +93,7 @@ class AsyncUserService:
         await self.db.commit()
         await self.db.refresh(user)
         
-        return UserInfo.model_validate(user)
+        return self._convert_user_to_info(user)
     
     async def get_user_info(self, user_id: int) -> UserInfo:
         """获取用户信息（带缓存）"""
@@ -118,7 +118,8 @@ class AsyncUserService:
         # 记录数据库中的原始用户数据
         logger.info(f"数据库用户数据 user_id={user_id}, gender={user.gender}, type={type(user.gender)}")
         
-        user_info = UserInfo.model_validate(user)
+        # 手动转换用户信息，补充缺失字段
+        user_info = self._convert_user_to_info(user)
         
         # 记录验证后的用户信息
         logger.info(f"验证后用户信息 user_id={user_id}, gender={user_info.gender}")
@@ -168,7 +169,7 @@ class AsyncUserService:
         # 清理缓存
         await self.cache_service.delete_user_info(user_id)
         
-        user_info = UserInfo.model_validate(user)
+        user_info = self._convert_user_to_info(user)
         
         # 重新缓存
         await self.cache_service.set_user_info(user_id, user_info.model_dump())
@@ -207,7 +208,7 @@ class AsyncUserService:
         result = await self.db.execute(stmt)
         users = result.scalars().all()
         
-        user_list = [UserInfo.model_validate(user) for user in users]
+        user_list = [self._convert_user_to_info(user) for user in users]
         
         return PaginationResult(
             items=user_list,
@@ -333,3 +334,44 @@ class AsyncUserService:
             .values(invited_count=User.invited_count + 1)
         )
         await self.db.execute(stmt)
+    
+    def _convert_user_to_info(self, user: User) -> UserInfo:
+        """将数据库User模型转换为UserInfo响应模型"""
+        # 处理性别字段转换
+        gender_map = {0: "unknown", 1: "male", 2: "female"}
+        gender = gender_map.get(user.gender, "unknown") if user.gender is not None else "unknown"
+        
+        # 创建UserInfo对象，补充缺失的字段
+        return UserInfo(
+            id=user.id,
+            username=user.username,
+            nickname=user.nickname,
+            avatar=user.avatar,
+            email=user.email,
+            phone=user.phone,
+            role=user.role,
+            status=user.status,
+            bio=user.bio,
+            birthday=user.birthday.date() if user.birthday else None,
+            gender=gender,
+            location=None,  # 数据库中没有这个字段，设为None
+            
+            # 统计字段，数据库中没有，设为默认值
+            follower_count=0,
+            following_count=0,
+            content_count=0,
+            like_count=0,
+            
+            # VIP相关，数据库中没有，设为None
+            vip_expire_time=None,
+            
+            # 登录相关
+            last_login_time=user.last_login_time,
+            login_count=user.login_count or 0,
+            
+            # 邀请相关，数据库中没有，设为默认值
+            invite_code=None,  # 如果需要，可以从其他地方获取
+            invited_count=0,
+            
+            create_time=user.create_time
+        )

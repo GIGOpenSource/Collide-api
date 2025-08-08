@@ -118,7 +118,7 @@ class UserInfo(BaseModel):
     """用户信息响应"""
     id: int = Field(description="用户ID")
     username: str = Field(description="用户名")
-    nickname: str = Field(description="昵称")
+    nickname: Optional[str] = Field(description="昵称")
     avatar: Optional[str] = Field(description="头像URL")
     email: Optional[str] = Field(description="邮箱")
     phone: Optional[str] = Field(description="手机号")
@@ -127,24 +127,24 @@ class UserInfo(BaseModel):
     bio: Optional[str] = Field(description="个人简介")
     birthday: Optional[date] = Field(description="生日")
     gender: Optional[str] = Field(default="unknown", description="性别")
-    location: Optional[str] = Field(description="所在地")
+    location: Optional[str] = Field(default=None, description="所在地")
     
-    # 统计字段
-    follower_count: int = Field(description="粉丝数")
-    following_count: int = Field(description="关注数")
-    content_count: int = Field(description="内容数")
-    like_count: int = Field(description="获得点赞数")
+    # 统计字段（设置默认值）
+    follower_count: int = Field(default=0, description="粉丝数")
+    following_count: int = Field(default=0, description="关注数")
+    content_count: int = Field(default=0, description="内容数")
+    like_count: int = Field(default=0, description="获得点赞数")
     
     # VIP相关
-    vip_expire_time: Optional[datetime] = Field(description="VIP过期时间")
+    vip_expire_time: Optional[datetime] = Field(default=None, description="VIP过期时间")
     
     # 登录相关
     last_login_time: Optional[datetime] = Field(description="最后登录时间")
-    login_count: int = Field(description="登录次数")
+    login_count: int = Field(default=0, description="登录次数")
     
     # 邀请相关
-    invite_code: Optional[str] = Field(description="邀请码")
-    invited_count: int = Field(description="邀请人数")
+    invite_code: Optional[str] = Field(default=None, description="邀请码")
+    invited_count: int = Field(default=0, description="邀请人数")
     
     create_time: datetime = Field(description="创建时间")
     
