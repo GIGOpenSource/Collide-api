@@ -28,6 +28,14 @@ from app.domains.category.async_router import router as category_router
 from app.domains.social.async_router import router as social_router
 from app.domains.comment.async_router import router as comment_router
 from app.domains.like.async_router import router as like_router
+from app.domains.follow.async_router import router as follow_router
+from app.domains.favorite.async_router import router as favorite_router
+from app.domains.search.async_router import router as search_router
+from app.domains.tag.async_router import router as tag_router
+from app.domains.ads.async_router import router as ads_router
+from app.domains.message.async_router import router as message_router
+from app.domains.task.async_router import router as task_router
+from app.domains.goods.async_router import router as goods_router
 from app.domains.category.async_router import router as category_router
 
 # 配置日志
@@ -140,6 +148,14 @@ app.include_router(category_router)
 app.include_router(social_router)
 app.include_router(comment_router)
 app.include_router(like_router)
+app.include_router(follow_router)
+app.include_router(favorite_router)
+app.include_router(search_router)
+app.include_router(tag_router)
+app.include_router(ads_router)
+app.include_router(message_router)
+app.include_router(task_router)
+app.include_router(goods_router)
 
 # 健康检查接口
 @app.get("/health", tags=["系统"], summary="健康检查")
