@@ -13,7 +13,7 @@ from app.domains.users.schemas import (
     UserLoginIdentifierRequest, PasswordChangeRequest, UserBlockRequest, UserListQuery,
     UserInfo, UserWalletInfo, UserBlockInfo, UserByIdentifierResponse
 )
-from app.common.response import SuccessResponse, PaginationResponse, ErrorResponse
+from app.common.response import SuccessResponse, PaginationResponse, ErrorResponse, handle_business_error, handle_system_error, handle_not_found_error
 from app.common.dependencies import get_current_user_id, get_optional_user_context, UserContext, get_pagination
 from app.common.pagination import PaginationParams, PaginationResult
 from app.common.exceptions import BusinessException
@@ -48,10 +48,10 @@ async def create_user_internal(
         return SuccessResponse.create(data=user_info, message="用户创建成功")
     
     except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"用户创建失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="用户创建失败，请稍后重试")
+        return handle_system_error("用户创建失败，请稍后重试")
 
 
 @router.post("/internal/verify-password", response_model=SuccessResponse[bool], summary="验证用户密码", tags=["内部接口"])
@@ -70,9 +70,11 @@ async def verify_password_internal(
         is_valid = await user_service.verify_user_password(request)
         return SuccessResponse.create(data=is_valid, message="密码验证完成")
     
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"密码验证失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="密码验证失败，请稍后重试")
+        return handle_system_error("密码验证失败，请稍后重试")
 
 
 @router.post("/internal/find-by-identifier", response_model=SuccessResponse[Optional[UserByIdentifierResponse]], summary="根据登录标识查找用户", tags=["内部接口"])
@@ -90,9 +92,11 @@ async def find_user_by_identifier_internal(
         user_info = await user_service.get_user_by_login_identifier(request)
         return SuccessResponse.create(data=user_info, message="用户查询完成")
     
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"用户查询失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="用户查询失败，请稍后重试")
+        return handle_system_error("用户查询失败，请稍后重试")
 
 
 @router.post("/internal/update-login-info/{user_id}", response_model=SuccessResponse[bool], summary="更新用户登录信息", tags=["内部接口"])
@@ -110,9 +114,11 @@ async def update_login_info_internal(
         success = await user_service.update_login_info(user_id)
         return SuccessResponse.create(data=success, message="登录信息更新完成")
     
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"登录信息更新失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="登录信息更新失败，请稍后重试")
+        return handle_system_error("登录信息更新失败，请稍后重试")
 
 
 # ==================== 调试接口 ====================
@@ -154,10 +160,10 @@ async def get_current_user_info(
         return SuccessResponse.create(data=user_info, message="获取用户信息成功")
     
     except BusinessException as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"获取用户信息失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取用户信息失败，请稍后重试")
+        return handle_system_error("获取用户信息失败，请稍后重试")
 
 
 @router.put("/me", response_model=SuccessResponse[UserInfo], summary="更新当前用户信息")
@@ -177,10 +183,10 @@ async def update_current_user_info(
         return SuccessResponse.create(data=user_info, message="用户信息更新成功")
     
     except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"更新用户信息失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="更新用户信息失败，请稍后重试")
+        return handle_system_error("更新用户信息失败，请稍后重试")
 
 
 @router.get("/{user_id}", response_model=SuccessResponse[UserInfo], summary="获取指定用户信息")
@@ -200,10 +206,10 @@ async def get_user_by_id(
         return SuccessResponse.create(data=user_info, message="获取用户信息成功")
     
     except BusinessException as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"获取用户信息失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取用户信息失败，请稍后重试")
+        return handle_system_error("获取用户信息失败，请稍后重试")
 
 
 @router.get("", response_model=PaginationResponse[UserInfo], summary="获取用户列表")
@@ -241,9 +247,11 @@ async def get_user_list(
             message="获取用户列表成功"
         )
     
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"获取用户列表失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取用户列表失败，请稍后重试")
+        return handle_system_error("获取用户列表失败，请稍后重试")
 
 
 # ==================== 钱包相关接口 ====================
@@ -264,10 +272,10 @@ async def get_current_user_wallet(
         return SuccessResponse.create(data=wallet_info, message="获取钱包信息成功")
     
     except BusinessException as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"获取钱包信息失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取钱包信息失败，请稍后重试")
+        return handle_system_error("获取钱包信息失败，请稍后重试")
 
 
 @router.get("/{user_id}/wallet", response_model=SuccessResponse[UserWalletInfo], summary="获取指定用户钱包信息")
@@ -287,10 +295,10 @@ async def get_user_wallet_by_id(
         return SuccessResponse.create(data=wallet_info, message="获取钱包信息成功")
     
     except BusinessException as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"获取钱包信息失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取钱包信息失败，请稍后重试")
+        return handle_system_error("获取钱包信息失败，请稍后重试")
 
 
 # ==================== 用户管理接口 ====================
@@ -313,10 +321,10 @@ async def block_user(
         return SuccessResponse.create(data=block_info, message="用户拉黑成功")
     
     except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"拉黑用户失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="拉黑用户失败，请稍后重试")
+        return handle_system_error("拉黑用户失败，请稍后重试")
 
 
 @router.delete("/block/{blocked_user_id}", response_model=SuccessResponse[bool], summary="取消拉黑用户")
@@ -336,10 +344,10 @@ async def unblock_user(
         return SuccessResponse.create(data=success, message="取消拉黑成功")
     
     except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"取消拉黑失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="取消拉黑失败，请稍后重试")
+        return handle_system_error("取消拉黑失败，请稍后重试")
 
 
 @router.get("/block/list", response_model=PaginationResponse[UserBlockInfo], summary="获取拉黑用户列表")
@@ -365,9 +373,11 @@ async def get_block_list(
             message="获取拉黑列表成功"
         )
     
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"获取拉黑列表失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取拉黑列表失败，请稍后重试")
+        return handle_system_error("获取拉黑列表失败，请稍后重试")
 
 
 # ==================== 密码管理接口 ====================
@@ -390,7 +400,7 @@ async def change_password(
         return SuccessResponse.create(data=success, message="密码修改成功")
     
     except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"密码修改失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="密码修改失败，请稍后重试")
+        return handle_system_error("密码修改失败，请稍后重试")

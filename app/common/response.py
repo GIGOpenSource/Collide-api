@@ -1,6 +1,37 @@
 """
 统一响应模型
 按照用户要求的格式定义标准响应体、错误体、分页体
+
+使用示例：
+1. 成功响应：
+   {
+     "code": 200,
+     "message": "操作成功",
+     "success": true,
+     "data": {...}
+   }
+
+2. 错误响应：
+   {
+     "code": 400,
+     "message": "某某函数失败",
+     "success": false,
+     "data": null
+   }
+
+3. 分页响应：
+   {
+     "code": 200,
+     "message": "获取成功",
+     "success": true,
+     "data": {
+       "datas": [...],
+       "total": 100,
+       "currentPage": 1,
+       "pageSize": 20,
+       "totalPage": 5
+     }
+   }
 """
 from typing import Any, Optional, Generic, TypeVar, List
 from pydantic import BaseModel, Field
@@ -144,3 +175,74 @@ class ResponseCode:
     INVALID_CREDENTIALS = 1003
     INSUFFICIENT_BALANCE = 1004
     OPERATION_FAILED = 1005
+
+
+# 统一错误处理工具函数
+def handle_error_response(code: int = 400, message: str = "操作失败") -> ErrorResponse:
+    """统一错误响应处理
+    
+    返回格式：
+    {
+      "code": 400,
+      "message": "某某函数失败",
+      "success": false,
+      "data": null
+    }
+    """
+    return ErrorResponse.create(code=code, message=message)
+
+
+def handle_business_error(message: str, code: int = 400) -> ErrorResponse:
+    """业务错误响应处理"""
+    return handle_error_response(code=code, message=message)
+
+
+def handle_system_error(message: str = "系统内部错误") -> ErrorResponse:
+    """系统错误响应处理"""
+    return handle_error_response(code=500, message=message)
+
+
+def handle_not_found_error(message: str = "资源不存在") -> ErrorResponse:
+    """资源不存在错误响应处理"""
+    return handle_error_response(code=404, message=message)
+
+
+def handle_unauthorized_error(message: str = "未授权访问") -> ErrorResponse:
+    """未授权错误响应处理"""
+    return handle_error_response(code=401, message=message)
+
+
+def handle_forbidden_error(message: str = "禁止访问") -> ErrorResponse:
+    """禁止访问错误响应处理"""
+    return handle_error_response(code=403, message=message)
+
+
+# 使用示例和最佳实践
+"""
+在路由中使用统一错误响应的最佳实践：
+
+1. 业务异常处理：
+   try:
+       result = await service.some_operation()
+       return SuccessResponse.create(data=result, message="操作成功")
+   except BusinessException as e:
+       return handle_business_error(e.message, e.code)
+   except Exception as e:
+       logger.error(f"操作失败: {str(e)}")
+       return handle_system_error("操作失败，请稍后重试")
+
+2. 不同错误类型：
+   - 业务错误：handle_business_error("用户名已存在", 1002)
+   - 系统错误：handle_system_error("系统内部错误")
+   - 资源不存在：handle_not_found_error("用户不存在")
+   - 未授权：handle_unauthorized_error("请先登录")
+   - 禁止访问：handle_forbidden_error("无权限访问")
+
+3. 确保所有错误响应都遵循统一格式：
+   {
+     "code": 400,
+     "message": "某某函数失败",
+     "success": false,
+     "data": null
+   }
+"""

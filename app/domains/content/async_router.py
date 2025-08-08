@@ -7,8 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_async_db
 from app.common.dependencies import get_current_user_context, UserContext, get_optional_user_context, get_pagination
-from app.common.response import SuccessResponse, PaginationResponse
+from app.common.response import SuccessResponse, PaginationResponse, handle_business_error, handle_system_error, handle_not_found_error
 from app.common.pagination import PaginationParams
+from app.common.exceptions import BusinessException
 from app.domains.content.async_service import ContentAsyncService
 from app.domains.content.schemas import (
     ContentCreate, ContentUpdate, ContentInfo, ContentQueryParams,
@@ -17,6 +18,9 @@ from app.domains.content.schemas import (
     UserContentPurchaseCreate, UserContentPurchaseInfo,
     PublishContentRequest, ContentStatsUpdate, ScoreContentRequest
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/content", tags=["内容管理"])
 
@@ -43,13 +47,16 @@ async def create_content(
     
     需要登录权限，创建的内容会自动设置为草稿状态。
     """
-    service = ContentAsyncService(db)
-    content = await service.create_content(
-        content_data, 
-        current_user.user_id, 
-        current_user.username
-    )
-    return SuccessResponse(data=content, message="内容创建成功")
+    try:
+        service = ContentAsyncService(db)
+        content = await service.create_content(content_data, current_user.user_id)
+        return SuccessResponse.create(data=content, message="内容创建成功")
+    
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"内容创建失败: {str(e)}")
+        return handle_system_error("内容创建失败，请稍后重试")
 
 
 @router.get("/{content_id}", response_model=SuccessResponse[ContentInfo], summary="获取内容详情", description="根据内容ID获取详细信息")
@@ -69,10 +76,17 @@ async def get_content(
     
     如果用户已登录，会自动增加浏览量。
     """
-    service = ContentAsyncService(db)
-    user_id = current_user.user_id if current_user else None
-    content = await service.get_content_by_id(content_id, user_id)
-    return SuccessResponse(data=content, message="获取成功")
+    try:
+        service = ContentAsyncService(db)
+        user_id = current_user.user_id if current_user else None
+        content = await service.get_content_by_id(content_id, user_id)
+        return SuccessResponse.create(data=content, message="获取成功")
+    
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取内容详情失败: {str(e)}")
+        return handle_system_error("获取内容详情失败，请稍后重试")
 
 
 @router.put("/{content_id}", response_model=SuccessResponse[ContentInfo], summary="更新内容", description="更新已有内容信息")
@@ -99,9 +113,16 @@ async def update_content(
     
     需要登录权限且只能更新自己的内容。
     """
-    service = ContentAsyncService(db)
-    content = await service.update_content(content_id, content_data, current_user.user_id)
-    return SuccessResponse(data=content, message="内容更新成功")
+    try:
+        service = ContentAsyncService(db)
+        content = await service.update_content(content_id, content_data, current_user.user_id)
+        return SuccessResponse.create(data=content, message="内容更新成功")
+    
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"更新内容失败: {str(e)}")
+        return handle_system_error("更新内容失败，请稍后重试")
 
 
 @router.delete("/{content_id}", response_model=SuccessResponse[bool], summary="删除内容", description="删除指定内容及其关联章节和付费配置")
@@ -110,10 +131,24 @@ async def delete_content(
     current_user: UserContext = Depends(get_current_user_context),
     db: AsyncSession = Depends(get_async_db)
 ):
-    """删除内容"""
-    service = ContentAsyncService(db)
-    result = await service.delete_content(content_id, current_user.user_id)
-    return SuccessResponse(data=result, message="内容删除成功")
+    """
+    删除内容
+    
+    删除指定内容及其关联的章节、付费配置等。
+    只有内容作者可以执行此操作。
+    
+    需要登录权限且只能删除自己的内容。
+    """
+    try:
+        service = ContentAsyncService(db)
+        success = await service.delete_content(content_id, current_user.user_id)
+        return SuccessResponse.create(data=success, message="内容删除成功")
+    
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"删除内容失败: {str(e)}")
+        return handle_system_error("删除内容失败，请稍后重试")
 
 
 @router.post("/{content_id}/publish", response_model=SuccessResponse[ContentInfo], summary="发布内容", description="将草稿内容发布上线")
@@ -123,10 +158,23 @@ async def publish_content(
     current_user: UserContext = Depends(get_current_user_context),
     db: AsyncSession = Depends(get_async_db)
 ):
-    """发布内容"""
-    service = ContentAsyncService(db)
-    content = await service.publish_content(content_id, current_user.user_id, publish_request)
-    return SuccessResponse(data=content, message="内容发布成功")
+    """
+    发布内容
+    
+    将草稿状态的内容发布上线，只有内容作者可以执行此操作。
+    
+    需要登录权限且只能发布自己的内容。
+    """
+    try:
+        service = ContentAsyncService(db)
+        content = await service.publish_content(content_id, publish_request, current_user.user_id)
+        return SuccessResponse.create(data=content, message="内容发布成功")
+    
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"发布内容失败: {str(e)}")
+        return handle_system_error("发布内容失败，请稍后重试")
 
 
 @router.get("/", response_model=PaginationResponse[ContentInfo], summary="获取内容列表", description="支持多种筛选条件的内容列表查询")
@@ -203,36 +251,42 @@ async def get_content_list(
     
     返回分页结果，包含总数、当前页、总页数等信息。
     """
-    service = ContentAsyncService(db)
-    query_params = ContentQueryParams(
-        content_type=content_type,
-        category_id=category_id,
-        author_id=author_id,
-        status=status,
-        review_status=review_status,
-        keyword=keyword,
-        min_view_count=min_view_count,
-        max_view_count=max_view_count,
-        min_like_count=min_like_count,
-        max_like_count=max_like_count,
-        min_favorite_count=min_favorite_count,
-        max_favorite_count=max_favorite_count,
-        min_comment_count=min_comment_count,
-        max_comment_count=max_comment_count,
-        min_score=min_score,
-        max_score=max_score,
-        publish_date_start=publish_date_start,
-        publish_date_end=publish_date_end,
-        create_date_start=create_date_start,
-        create_date_end=create_date_end,
-        is_free=is_free,
-        is_vip_free=is_vip_free,
-        tags=tags,
-        sort_by=sort_by,
-        sort_order=sort_order
-    )
-    result = await service.get_content_list(query_params, pagination)
-    return PaginationResponse.from_pagination_result(result, "获取成功")
+    try:
+        service = ContentAsyncService(db)
+        query_params = ContentQueryParams(
+            content_type=content_type,
+            category_id=category_id,
+            author_id=author_id,
+            status=status,
+            review_status=review_status,
+            keyword=keyword,
+            min_view_count=min_view_count,
+            max_view_count=max_view_count,
+            min_like_count=min_like_count,
+            max_like_count=max_like_count,
+            min_favorite_count=min_favorite_count,
+            max_favorite_count=max_favorite_count,
+            min_comment_count=min_comment_count,
+            max_comment_count=max_comment_count,
+            min_score=min_score,
+            max_score=max_score,
+            publish_date_start=publish_date_start,
+            publish_date_end=publish_date_end,
+            create_date_start=create_date_start,
+            create_date_end=create_date_end,
+            is_free=is_free,
+            is_vip_free=is_vip_free,
+            tags=tags,
+            sort_by=sort_by,
+            sort_order=sort_order
+        )
+        result = await service.get_content_list(query_params, pagination)
+        return PaginationResponse.from_pagination_result(result, "获取成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取内容列表失败: {str(e)}")
+        return handle_system_error("获取内容列表失败，请稍后重试")
 
 
 @router.post("/{content_id}/stats", response_model=SuccessResponse[bool], summary="更新内容统计", description="按类型增长浏览/点赞/评论/分享/收藏等统计")
@@ -242,13 +296,19 @@ async def update_content_stats(
     db: AsyncSession = Depends(get_async_db)
 ):
     """更新内容统计数据"""
-    service = ContentAsyncService(db)
-    result = await service.increment_content_stats(
-        content_id, 
-        stats_update.increment_type, 
-        stats_update.increment_value
-    )
-    return SuccessResponse(data=result, message="统计更新成功")
+    try:
+        service = ContentAsyncService(db)
+        result = await service.increment_content_stats(
+            content_id, 
+            stats_update.increment_type, 
+            stats_update.increment_value
+        )
+        return SuccessResponse.create(data=result, message="统计更新成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"更新内容统计失败: {str(e)}")
+        return handle_system_error("更新内容统计失败，请稍后重试")
 
 
 @router.post("/{content_id}/score", response_model=SuccessResponse[bool], summary="为内容评分", description="对指定内容进行1-5分评分")
@@ -259,9 +319,15 @@ async def score_content(
     db: AsyncSession = Depends(get_async_db)
 ):
     """为内容评分"""
-    service = ContentAsyncService(db)
-    result = await service.score_content(content_id, current_user.user_id, score_request)
-    return SuccessResponse(data=result, message="评分成功")
+    try:
+        service = ContentAsyncService(db)
+        result = await service.score_content(content_id, current_user.user_id, score_request)
+        return SuccessResponse.create(data=result, message="评分成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"为内容评分失败: {str(e)}")
+        return handle_system_error("为内容评分失败，请稍后重试")
 
 
 # ================ 章节管理接口 ================
@@ -294,9 +360,15 @@ async def create_chapter(
     """
     # 确保content_id一致
     chapter_data.content_id = content_id
-    service = ContentAsyncService(db)
-    chapter = await service.create_chapter(chapter_data, current_user.user_id)
-    return SuccessResponse(data=chapter, message="章节创建成功")
+    try:
+        service = ContentAsyncService(db)
+        chapter = await service.create_chapter(chapter_data, current_user.user_id)
+        return SuccessResponse.create(data=chapter, message="章节创建成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"创建章节失败: {str(e)}")
+        return handle_system_error("创建章节失败，请稍后重试")
 
 
 @router.get("/{content_id}/chapters", response_model=SuccessResponse[List[ChapterListItem]], summary="获取章节列表", description="获取指定内容的章节列表（不含正文）")
@@ -306,10 +378,16 @@ async def get_content_chapters(
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取内容的章节列表"""
-    service = ContentAsyncService(db)
-    user_id = current_user.user_id if current_user else None
-    chapters = await service.get_content_chapters(content_id, user_id)
-    return SuccessResponse(data=chapters, message="获取成功")
+    try:
+        service = ContentAsyncService(db)
+        user_id = current_user.user_id if current_user else None
+        chapters = await service.get_content_chapters(content_id, user_id)
+        return SuccessResponse.create(data=chapters, message="获取成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取章节列表失败: {str(e)}")
+        return handle_system_error("获取章节列表失败，请稍后重试")
 
 
 @router.get("/chapters/{chapter_id}", response_model=SuccessResponse[ChapterInfo], summary="获取章节详情", description="根据章节ID获取章节详细信息")
@@ -319,10 +397,16 @@ async def get_chapter(
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取章节详情"""
-    service = ContentAsyncService(db)
-    user_id = current_user.user_id if current_user else None
-    chapter = await service.get_chapter_by_id(chapter_id, user_id)
-    return SuccessResponse(data=chapter, message="获取成功")
+    try:
+        service = ContentAsyncService(db)
+        user_id = current_user.user_id if current_user else None
+        chapter = await service.get_chapter_by_id(chapter_id, user_id)
+        return SuccessResponse.create(data=chapter, message="获取成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取章节详情失败: {str(e)}")
+        return handle_system_error("获取章节详情失败，请稍后重试")
 
 
 @router.put("/chapters/{chapter_id}", response_model=SuccessResponse[ChapterInfo], summary="更新章节", description="更新章节标题/内容/字数/状态等信息")
@@ -333,9 +417,15 @@ async def update_chapter(
     db: AsyncSession = Depends(get_async_db)
 ):
     """更新章节"""
-    service = ContentAsyncService(db)
-    chapter = await service.update_chapter(chapter_id, chapter_data, current_user.user_id)
-    return SuccessResponse(data=chapter, message="章节更新成功")
+    try:
+        service = ContentAsyncService(db)
+        chapter = await service.update_chapter(chapter_id, chapter_data, current_user.user_id)
+        return SuccessResponse.create(data=chapter, message="章节更新成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"更新章节失败: {str(e)}")
+        return handle_system_error("更新章节失败，请稍后重试")
 
 
 @router.delete("/chapters/{chapter_id}", response_model=SuccessResponse[bool], summary="删除章节", description="删除指定章节")
@@ -345,9 +435,15 @@ async def delete_chapter(
     db: AsyncSession = Depends(get_async_db)
 ):
     """删除章节"""
-    service = ContentAsyncService(db)
-    result = await service.delete_chapter(chapter_id, current_user.user_id)
-    return SuccessResponse(data=result, message="章节删除成功")
+    try:
+        service = ContentAsyncService(db)
+        result = await service.delete_chapter(chapter_id, current_user.user_id)
+        return SuccessResponse.create(data=result, message="章节删除成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"删除章节失败: {str(e)}")
+        return handle_system_error("删除章节失败，请稍后重试")
 
 
 # ================ 付费配置接口 ================
@@ -362,9 +458,15 @@ async def create_content_payment(
     """创建内容付费配置"""
     # 确保content_id一致
     payment_data.content_id = content_id
-    service = ContentAsyncService(db)
-    payment = await service.create_content_payment(payment_data, current_user.user_id)
-    return SuccessResponse(data=payment, message="付费配置创建成功")
+    try:
+        service = ContentAsyncService(db)
+        payment = await service.create_content_payment(payment_data, current_user.user_id)
+        return SuccessResponse.create(data=payment, message="付费配置创建成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"创建付费配置失败: {str(e)}")
+        return handle_system_error("创建付费配置失败，请稍后重试")
 
 
 @router.get("/{content_id}/payment", response_model=SuccessResponse[Optional[ContentPaymentInfo]], summary="获取付费配置", description="查询指定内容的付费配置")
@@ -373,9 +475,15 @@ async def get_content_payment(
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取内容付费配置"""
-    service = ContentAsyncService(db)
-    payment = await service.get_content_payment(content_id)
-    return SuccessResponse(data=payment, message="获取成功")
+    try:
+        service = ContentAsyncService(db)
+        payment = await service.get_content_payment(content_id)
+        return SuccessResponse.create(data=payment, message="获取成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取付费配置失败: {str(e)}")
+        return handle_system_error("获取付费配置失败，请稍后重试")
 
 
 # ================ 购买相关接口 ================
@@ -414,9 +522,15 @@ async def create_purchase_record(
     """
     # 确保content_id一致
     purchase_data.content_id = content_id
-    service = ContentAsyncService(db)
-    purchase = await service.create_purchase_record(purchase_data, current_user.user_id)
-    return SuccessResponse(data=purchase, message="购买成功")
+    try:
+        service = ContentAsyncService(db)
+        purchase = await service.create_purchase_record(purchase_data, current_user.user_id)
+        return SuccessResponse.create(data=purchase, message="购买成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"购买内容失败: {str(e)}")
+        return handle_system_error("购买内容失败，请稍后重试")
 
 
 @router.get("/{content_id}/purchase", response_model=SuccessResponse[Optional[UserContentPurchaseInfo]], summary="检查是否已购买", description="检查当前用户是否购买了指定内容")
@@ -426,9 +540,15 @@ async def check_user_purchase(
     db: AsyncSession = Depends(get_async_db)
 ):
     """检查用户是否购买了内容"""
-    service = ContentAsyncService(db)
-    purchase = await service.check_user_purchase(current_user.user_id, content_id)
-    return SuccessResponse(data=purchase, message="检查完成")
+    try:
+        service = ContentAsyncService(db)
+        purchase = await service.check_user_purchase(current_user.user_id, content_id)
+        return SuccessResponse.create(data=purchase, message="检查完成")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"检查用户购买失败: {str(e)}")
+        return handle_system_error("检查用户购买失败，请稍后重试")
 
 
 @router.get("/purchases/my", response_model=PaginationResponse[UserContentPurchaseInfo], summary="我的购买记录", description="分页获取当前用户的内容购买记录")
@@ -438,9 +558,15 @@ async def get_my_purchases(
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取我的购买记录"""
-    service = ContentAsyncService(db)
-    result = await service.get_user_purchases(current_user.user_id, pagination)
-    return PaginationResponse.from_pagination_result(result, "获取成功")
+    try:
+        service = ContentAsyncService(db)
+        result = await service.get_user_purchases(current_user.user_id, pagination)
+        return PaginationResponse.from_pagination_result(result, "获取成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取我的购买记录失败: {str(e)}")
+        return handle_system_error("获取我的购买记录失败，请稍后重试")
 
 
 # ================ 我的内容管理接口 ================
@@ -505,32 +631,37 @@ async def get_my_contents(
     
     返回分页结果，支持所有内容查询的筛选和排序功能。
     """
-    service = ContentAsyncService(db)
-    query_params = ContentQueryParams(
-        content_type=content_type,
-        author_id=current_user.user_id,  # 只获取当前用户的内容
-        status=status,
-        review_status=review_status,
-        keyword=keyword,
-        min_view_count=min_view_count,
-        max_view_count=max_view_count,
-        min_like_count=min_like_count,
-        max_like_count=max_like_count,
-        min_favorite_count=min_favorite_count,
-        max_favorite_count=max_favorite_count,
-        min_score=min_score,
-        max_score=max_score,
-        publish_date_start=publish_date_start,
-        publish_date_end=publish_date_end,
-        create_date_start=create_date_start,
-        create_date_end=create_date_end,
-        tags=tags,
-        sort_by=sort_by,
-        sort_order=sort_order
-    )
-    pagination = PaginationParams(page=page, page_size=size)
-    result = await service.get_content_list(query_params, pagination)
-    return PaginationResponse.from_pagination_result(result, "获取成功")
+    try:
+        service = ContentAsyncService(db)
+        query_params = ContentQueryParams(
+            content_type=content_type,
+            author_id=current_user.user_id,  # 只获取当前用户的内容
+            status=status,
+            review_status=review_status,
+            keyword=keyword,
+            min_view_count=min_view_count,
+            max_view_count=max_view_count,
+            min_like_count=min_like_count,
+            max_like_count=max_like_count,
+            min_favorite_count=min_favorite_count,
+            max_favorite_count=max_favorite_count,
+            min_score=min_score,
+            max_score=max_score,
+            publish_date_start=publish_date_start,
+            publish_date_end=publish_date_end,
+            create_date_start=create_date_start,
+            create_date_end=create_date_end,
+            tags=tags,
+            sort_by=sort_by,
+            sort_order=sort_order
+        )
+        result = await service.get_content_list(query_params, pagination)
+        return PaginationResponse.from_pagination_result(result, "获取成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取我的内容列表失败: {str(e)}")
+        return handle_system_error("获取我的内容列表失败，请稍后重试")
 
 
 # ================ 内容统计接口 ================
@@ -541,21 +672,27 @@ async def get_content_stats(
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取内容统计信息"""
-    service = ContentAsyncService(db)
-    content = await service.get_content_by_id(content_id)
-    
-    stats = {
-        "view_count": content.view_count,
-        "like_count": content.like_count,
-        "comment_count": content.comment_count,
-        "share_count": content.share_count,
-        "favorite_count": content.favorite_count,
-        "score_count": content.score_count,
-        "score_total": content.score_total,
-        "average_score": content.average_score
-    }
-    
-    return SuccessResponse(data=stats, message="获取成功")
+    try:
+        service = ContentAsyncService(db)
+        content = await service.get_content_by_id(content_id)
+        
+        stats = {
+            "view_count": content.view_count,
+            "like_count": content.like_count,
+            "comment_count": content.comment_count,
+            "share_count": content.share_count,
+            "favorite_count": content.favorite_count,
+            "score_count": content.score_count,
+            "score_total": content.score_total,
+            "average_score": content.average_score
+        }
+        
+        return SuccessResponse.create(data=stats, message="获取成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取内容统计失败: {str(e)}")
+        return handle_system_error("获取内容统计失败，请稍后重试")
 
 
 # ================ 特色内容接口 ================
@@ -580,23 +717,29 @@ async def get_hot_contents(
     
     热门度计算基于指定天数内的内容表现。
     """
-    service = ContentAsyncService(db)
-    
-    # 计算时间范围
-    from datetime import datetime, timedelta
-    start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-    
-    query_params = ContentQueryParams(
-        content_type=content_type,
-        category_id=category_id,
-        status="PUBLISHED",
-        review_status="APPROVED",
-        publish_date_start=start_date,
-        sort_by="view_count",  # 可以后续改为综合热度算法
-        sort_order="desc"
-    )
-    result = await service.get_content_list(query_params, pagination)
-    return PaginationResponse.from_pagination_result(result, f"获取{days}天内热门内容成功")
+    try:
+        service = ContentAsyncService(db)
+        
+        # 计算时间范围
+        from datetime import datetime, timedelta
+        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        
+        query_params = ContentQueryParams(
+            content_type=content_type,
+            category_id=category_id,
+            status="PUBLISHED",
+            review_status="APPROVED",
+            publish_date_start=start_date,
+            sort_by="view_count",  # 可以后续改为综合热度算法
+            sort_order="desc"
+        )
+        result = await service.get_content_list(query_params, pagination)
+        return PaginationResponse.from_pagination_result(result, f"获取{days}天内热门内容成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取热门内容失败: {str(e)}")
+        return handle_system_error("获取热门内容失败，请稍后重试")
 
 
 @router.get("/latest", response_model=PaginationResponse[ContentInfo])
@@ -607,17 +750,23 @@ async def get_latest_contents(
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取最新内容 - 按发布时间排序"""
-    service = ContentAsyncService(db)
-    query_params = ContentQueryParams(
-        content_type=content_type,
-        category_id=category_id,
-        status="PUBLISHED",
-        review_status="APPROVED",
-        sort_by="publish_time",
-        sort_order="desc"
-    )
-    result = await service.get_content_list(query_params, pagination)
-    return PaginationResponse.from_pagination_result(result, "获取最新内容成功")
+    try:
+        service = ContentAsyncService(db)
+        query_params = ContentQueryParams(
+            content_type=content_type,
+            category_id=category_id,
+            status="PUBLISHED",
+            review_status="APPROVED",
+            sort_by="publish_time",
+            sort_order="desc"
+        )
+        result = await service.get_content_list(query_params, pagination)
+        return PaginationResponse.from_pagination_result(result, "获取最新内容成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取最新内容失败: {str(e)}")
+        return handle_system_error("获取最新内容失败，请稍后重试")
 
 
 @router.get("/recommended", response_model=PaginationResponse[ContentInfo])
@@ -628,18 +777,24 @@ async def get_recommended_contents(
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取推荐内容 - 按评分和热度排序"""
-    service = ContentAsyncService(db)
-    query_params = ContentQueryParams(
-        content_type=content_type,
-        category_id=category_id,
-        status="PUBLISHED",
-        review_status="APPROVED",
-        min_score=3.0,  # 至少3分以上
-        sort_by="score",
-        sort_order="desc"
-    )
-    result = await service.get_content_list(query_params, pagination)
-    return PaginationResponse.from_pagination_result(result, "获取推荐内容成功")
+    try:
+        service = ContentAsyncService(db)
+        query_params = ContentQueryParams(
+            content_type=content_type,
+            category_id=category_id,
+            status="PUBLISHED",
+            review_status="APPROVED",
+            min_score=3.0,  # 至少3分以上
+            sort_by="score",
+            sort_order="desc"
+        )
+        result = await service.get_content_list(query_params, pagination)
+        return PaginationResponse.from_pagination_result(result, "获取推荐内容成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取推荐内容失败: {str(e)}")
+        return handle_system_error("获取推荐内容失败，请稍后重试")
 
 
 @router.get("/trending", response_model=PaginationResponse[ContentInfo])
@@ -650,18 +805,24 @@ async def get_trending_contents(
     db: AsyncSession = Depends(get_async_db)
 ):
     """获取趋势内容 - 按点赞数排序"""
-    service = ContentAsyncService(db)
-    query_params = ContentQueryParams(
-        content_type=content_type,
-        category_id=category_id,
-        status="PUBLISHED",
-        review_status="APPROVED",
-        min_like_count=10,  # 至少10个点赞
-        sort_by="like_count",
-        sort_order="desc"
-    )
-    result = await service.get_content_list(query_params, pagination)
-    return PaginationResponse.from_pagination_result(result, "获取趋势内容成功")
+    try:
+        service = ContentAsyncService(db)
+        query_params = ContentQueryParams(
+            content_type=content_type,
+            category_id=category_id,
+            status="PUBLISHED",
+            review_status="APPROVED",
+            min_like_count=10,  # 至少10个点赞
+            sort_by="like_count",
+            sort_order="desc"
+        )
+        result = await service.get_content_list(query_params, pagination)
+        return PaginationResponse.from_pagination_result(result, "获取趋势内容成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"获取趋势内容失败: {str(e)}")
+        return handle_system_error("获取趋势内容失败，请稍后重试")
 
 
 @router.get("/search", response_model=PaginationResponse[ContentInfo], summary="搜索内容", description="全文搜索内容，支持标题、描述、标签、作者搜索")
@@ -697,18 +858,24 @@ async def search_contents(
     
     返回匹配的内容列表，按指定方式排序。
     """
-    service = ContentAsyncService(db)
-    query_params = ContentQueryParams(
-        content_type=content_type,
-        category_id=category_id,
-        status="PUBLISHED",
-        review_status="APPROVED",
-        keyword=q,
-        sort_by=sort_by,
-        sort_order=sort_order
-    )
-    result = await service.get_content_list(query_params, pagination)
-    return PaginationResponse.from_pagination_result(result, f"搜索'{q}'的结果")
+    try:
+        service = ContentAsyncService(db)
+        query_params = ContentQueryParams(
+            content_type=content_type,
+            category_id=category_id,
+            status="PUBLISHED",
+            review_status="APPROVED",
+            keyword=q,
+            sort_by=sort_by,
+            sort_order=sort_order
+        )
+        result = await service.get_content_list(query_params, pagination)
+        return PaginationResponse.from_pagination_result(result, f"搜索'{q}'的结果")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"搜索内容失败: {str(e)}")
+        return handle_system_error("搜索内容失败，请稍后重试")
 
 
 @router.get("/by-category-name", response_model=PaginationResponse[ContentInfo], summary="按分类名称查询内容", description="根据分类名称（精确/模糊）聚合查询内容列表")
@@ -726,15 +893,21 @@ async def get_contents_by_category_name(
     pagination: PaginationParams = Depends(get_pagination),
     db: AsyncSession = Depends(get_async_db)
 ):
-    service = ContentAsyncService(db)
-    query_params = ContentQueryParams(
-        content_type=content_type,
-        author_id=author_id,
-        status=status,
-        review_status=review_status,
-        keyword=keyword,
-        sort_by=sort_by,
-        sort_order=sort_order,
-    )
-    result = await service.get_content_list_by_category_name(category_name, match, query_params, pagination)
-    return PaginationResponse.from_pagination_result(result, "获取成功")
+    try:
+        service = ContentAsyncService(db)
+        query_params = ContentQueryParams(
+            content_type=content_type,
+            author_id=author_id,
+            status=status,
+            review_status=review_status,
+            keyword=keyword,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+        result = await service.get_content_list_by_category_name(category_name, match, query_params, pagination)
+        return PaginationResponse.from_pagination_result(result, "获取成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"按分类名称查询内容失败: {str(e)}")
+        return handle_system_error("按分类名称查询内容失败，请稍后重试")
