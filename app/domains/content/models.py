@@ -16,7 +16,7 @@ class Content(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment='内容ID')
     title = Column(String(200), nullable=False, comment='内容标题')
     description = Column(Text, comment='内容描述')
-    content_type = Column(String(50), nullable=False, comment='内容类型：NOVEL、COMIC、VIDEO、ARTICLE、AUDIO')
+    content_type = Column(String(50), nullable=False, comment='内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO')
     content_data = Column(String(500), comment='内容数据URL')
     cover_url = Column(String(500), comment='封面图片URL')
     tags = Column(Text, comment='标签，逗号分隔或JSON格式')
