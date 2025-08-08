@@ -90,6 +90,22 @@ class PaginationResponse(BaseResponse[PaginationData[T]], Generic[T]):
     success: bool = True
     
     @classmethod
+    def from_pagination_result(
+        cls,
+        result: "PaginationResult[T]",
+        message: str = "操作成功"
+    ) -> "PaginationResponse[T]":
+        """从通用分页结果构造统一分页响应"""
+        pagination_data = PaginationData[T](
+            datas=result.items,
+            total=result.total,
+            current_page=result.page,
+            page_size=result.page_size,
+            total_page=result.total_pages
+        )
+        return cls(data=pagination_data, message=message)
+
+    @classmethod
     def create(
         cls,
         datas: List[T],

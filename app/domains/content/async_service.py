@@ -340,12 +340,11 @@ class ContentAsyncService:
             
             content_list = [ContentInfo.model_validate(content) for content in contents]
             
-            return PaginationResult(
+            return PaginationResult.create(
                 items=content_list,
                 total=total,
                 page=pagination.page,
-                size=pagination.size,
-                pages=(total + pagination.size - 1) // pagination.size
+                page_size=pagination.page_size
             )
             
         except Exception as e:
@@ -666,12 +665,11 @@ class ContentAsyncService:
             
             purchase_list = [UserContentPurchaseInfo.model_validate(purchase) for purchase in purchases]
             
-            return PaginationResult(
+            return PaginationResult.create(
                 items=purchase_list,
                 total=total,
                 page=pagination.page,
-                size=pagination.size,
-                pages=(total + pagination.size - 1) // pagination.size
+                page_size=pagination.page_size
             )
             
         except Exception as e:

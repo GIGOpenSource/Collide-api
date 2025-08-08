@@ -231,7 +231,7 @@ async def get_content_list(
         sort_by=sort_by,
         sort_order=sort_order
     )
-    pagination = PaginationParams(page=page, size=size)
+    pagination = PaginationParams(page=page, page_size=size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取成功")
 
@@ -441,7 +441,7 @@ async def get_my_purchases(
 ):
     """获取我的购买记录"""
     service = ContentAsyncService(db)
-    pagination = PaginationParams(page=page, size=size)
+    pagination = PaginationParams(page=page, page_size=size)
     result = await service.get_user_purchases(current_user.user_id, pagination)
     return PaginationResponse.from_pagination_result(result, "获取成功")
 
@@ -532,7 +532,7 @@ async def get_my_contents(
         sort_by=sort_by,
         sort_order=sort_order
     )
-    pagination = PaginationParams(page=page, size=size)
+    pagination = PaginationParams(page=page, page_size=size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取成功")
 
@@ -600,7 +600,7 @@ async def get_hot_contents(
         sort_by="view_count",  # 可以后续改为综合热度算法
         sort_order="desc"
     )
-    pagination = PaginationParams(page=page, size=size)
+    pagination = PaginationParams(page=page, page_size=size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, f"获取{days}天内热门内容成功")
 
@@ -623,7 +623,7 @@ async def get_latest_contents(
         sort_by="publish_time",
         sort_order="desc"
     )
-    pagination = PaginationParams(page=page, size=size)
+    pagination = PaginationParams(page=page, page_size=size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取最新内容成功")
 
@@ -647,7 +647,7 @@ async def get_recommended_contents(
         sort_by="score",
         sort_order="desc"
     )
-    pagination = PaginationParams(page=page, size=size)
+    pagination = PaginationParams(page=page, page_size=size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取推荐内容成功")
 
@@ -671,7 +671,7 @@ async def get_trending_contents(
         sort_by="like_count",
         sort_order="desc"
     )
-    pagination = PaginationParams(page=page, size=size)
+    pagination = PaginationParams(page=page, page_size=size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, "获取趋势内容成功")
 
@@ -720,6 +720,6 @@ async def search_contents(
         sort_by=sort_by,
         sort_order=sort_order
     )
-    pagination = PaginationParams(page=page, size=size)
+    pagination = PaginationParams(page=page, page_size=size)
     result = await service.get_content_list(query_params, pagination)
     return PaginationResponse.from_pagination_result(result, f"搜索'{q}'的结果")
