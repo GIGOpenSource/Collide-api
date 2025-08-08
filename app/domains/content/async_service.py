@@ -7,7 +7,7 @@ from datetime import datetime, date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, insert, delete, and_, or_, func
 
-from app.domains.content.models import Content, Chapter, ContentPayment, UserContentPurchase
+from app.domains.content.models import Content, ContentChapter, ContentPayment, UserContentPurchase
 from app.domains.content.schemas import (
     ContentCreate, ContentUpdate, ContentInfo, ContentQueryParams,
     ChapterCreate, ChapterUpdate, ChapterInfo, ChapterListItem,
@@ -336,12 +336,12 @@ class ContentAsyncService:
 
         # 检查章节号是否重复
         existing_chapter = (await self.db.execute(
-            select(Chapter).where(and_(Chapter.content_id == chapter_data.content_id, Chapter.chapter_num == chapter_data.chapter_num))
+            select(ContentChapter).where(and_(ContentChapter.content_id == chapter_data.content_id, ContentChapter.chapter_num == chapter_data.chapter_num))
         )).scalar_one_or_none()
         if existing_chapter:
             raise BusinessException("章节号已存在")
 
-        chapter = Chapter(
+        chapter = ContentChapter(
             content_id=chapter_data.content_id,
             chapter_num=chapter_data.chapter_num,
             title=chapter_data.title,
@@ -370,7 +370,7 @@ class ContentAsyncService:
 
         # 缓存未命中，从数据库获取
         chapters = (await self.db.execute(
-            select(Chapter).where(Chapter.content_id == content_id).order_by(Chapter.chapter_num)
+            select(ContentChapter).where(ContentChapter.content_id == content_id).order_by(ContentChapter.chapter_num)
         )).scalars().all()
 
         chapter_list = [ChapterListItem.model_validate(chapter) for chapter in chapters]
