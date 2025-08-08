@@ -240,9 +240,9 @@ async def get_user_list(
         
         result = await user_service.get_user_list(query, pagination)
         return PaginationResponse.create(
-            items=result.items,
+            datas=result.items,
             total=result.total,
-            page=result.page,
+            current_page=result.page,
             page_size=result.page_size,
             message="获取用户列表成功"
         )
@@ -366,9 +366,9 @@ async def get_block_list(
         user_service = UserAsyncService(db)
         result = await user_service.get_block_list(current_user_id, pagination)
         return PaginationResponse.create(
-            items=result.items,
+            datas=result.items,
             total=result.total,
-            page=result.page,
+            current_page=result.page,
             page_size=result.page_size,
             message="获取拉黑列表成功"
         )
