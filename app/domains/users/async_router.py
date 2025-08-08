@@ -212,7 +212,7 @@ async def get_user_by_id(
         return handle_system_error("获取用户信息失败，请稍后重试")
 
 
-@router.get("", response_model=PaginationResponse[UserInfo], summary="获取用户列表")
+@router.get("/", response_model=PaginationResponse[UserInfo], summary="获取用户列表")
 async def get_user_list(
     db: AsyncSession = Depends(get_async_db),
     current_user_id: int = Depends(get_current_user_id),
@@ -232,9 +232,9 @@ async def get_user_list(
         user_service = UserAsyncService(db)
         
         # 构建查询参数
-        query = UserListQuery(
-            keyword=keyword,
-            role=role,
+        query = UserQuery(
+            username=keyword if keyword else None,
+            nickname=keyword if keyword else None,
             status=status
         )
         

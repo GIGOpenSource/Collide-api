@@ -192,6 +192,12 @@ class UserAsyncService:
             conditions.append(User.nickname.contains(query.nickname))
         if query.status:
             conditions.append(User.status == query.status)
+        
+        # 如果同时有username和nickname，使用OR条件
+        if query.username and query.nickname and query.username == query.nickname:
+            conditions = [or_(User.username.contains(query.username), User.nickname.contains(query.nickname))]
+            if query.status:
+                conditions.append(User.status == query.status)
 
         stmt = select(User).where(and_(*conditions)).order_by(User.create_time.desc())
 
