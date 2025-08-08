@@ -11,7 +11,7 @@ from app.domains.users.async_service import UserAsyncService
 from app.domains.users.schemas import (
     UserCreateRequest, UserUpdateRequest, UserPasswordVerifyRequest,
     UserLoginIdentifierRequest, PasswordChangeRequest, UserBlockRequest, UserListQuery,
-    UserInfo, UserWalletInfo, UserBlockInfo, UserByIdentifierResponse
+    UserInfo, UserWalletInfo, UserBlockInfo, UserByIdentifierResponse, UserQuery
 )
 from app.common.response import SuccessResponse, PaginationResponse, ErrorResponse, handle_business_error, handle_system_error, handle_not_found_error
 from app.common.dependencies import get_current_user_id, get_optional_user_context, UserContext, get_pagination
@@ -317,7 +317,7 @@ async def block_user(
     """
     try:
         user_service = UserAsyncService(db)
-        block_info = await user_service.block_user(current_user_id, request)
+        block_info = await user_service.block_user(current_user_id, request.blocked_user_id, request.reason)
         return SuccessResponse.create(data=block_info, message="用户拉黑成功")
     
     except BusinessException as e:
