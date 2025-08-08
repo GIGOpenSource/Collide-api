@@ -81,7 +81,7 @@ class FollowAsyncService:
         # 尝试从缓存获取
         cached_result = await cache_service.get(cache_key)
         if cached_result:
-            return PaginationResult.create(**cached_result)
+            return PaginationResult.model_validate(cached_result)
 
         conditions = [Follow.follower_id == user_id]
         
@@ -133,7 +133,7 @@ class FollowAsyncService:
 
         return is_following
 
-    @atomic_lock(lambda *args, **kwargs: f"follow:count:{kwargs.get('user_id')}")
+    @atomic_transaction()
     async def update_follow_count(self, user_id: int, increment: bool = True) -> bool:
         """更新关注计数 - 带分布式锁"""
         try:

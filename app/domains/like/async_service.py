@@ -94,7 +94,7 @@ class LikeAsyncService:
 
         return is_liked, like_info
 
-    @atomic_lock(lambda *args, **kwargs: f"like:count:{kwargs.get('like_type')}:{kwargs.get('target_id')}")
+    @atomic_transaction()
     async def update_like_count(self, like_type: str, target_id: int, increment: bool = True) -> bool:
         """更新点赞计数 - 带分布式锁"""
         try:

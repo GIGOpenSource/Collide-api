@@ -180,7 +180,7 @@ class UserAsyncService:
         # 尝试从缓存获取
         cached_result = await cache_service.get(cache_key)
         if cached_result:
-            return PaginationResult.create(**cached_result)
+            return PaginationResult.model_validate(cached_result)
 
         # 构建查询条件
         conditions = []
@@ -294,7 +294,7 @@ class UserAsyncService:
 
         return stats
 
-    @atomic_lock(lambda *args, **kwargs: f"user:balance:{kwargs.get('user_id')}")
+    @atomic_transaction()
     async def update_user_balance(self, user_id: int, amount: int, operation: str) -> bool:
         """更新用户余额 - 带分布式锁"""
         # 这里可以实现用户余额更新逻辑

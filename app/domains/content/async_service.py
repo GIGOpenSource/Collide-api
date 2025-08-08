@@ -141,7 +141,7 @@ class ContentAsyncService:
         # 尝试从缓存获取
         cached_result = await cache_service.get(cache_key)
         if cached_result:
-            return PaginationResult.create(**cached_result)
+            return PaginationResult.model_validate(cached_result)
 
         # 构建查询条件
         conditions = []
@@ -450,7 +450,7 @@ class ContentAsyncService:
         # 尝试从缓存获取
         cached_result = await cache_service.get(cache_key)
         if cached_result:
-            return PaginationResult.create(**cached_result)
+            return PaginationResult.model_validate(cached_result)
 
         # 这里需要关联分类表查询，简化处理
         # 实际实现中需要根据分类名称查询分类ID，然后查询内容

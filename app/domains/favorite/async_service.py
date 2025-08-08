@@ -79,7 +79,7 @@ class FavoriteAsyncService:
         # 尝试从缓存获取
         cached_result = await cache_service.get(cache_key)
         if cached_result:
-            return PaginationResult.create(**cached_result)
+            return PaginationResult.model_validate(cached_result)
 
         conditions = [Favorite.user_id == user_id]
         
@@ -133,7 +133,7 @@ class FavoriteAsyncService:
 
         return is_favorited
 
-    @atomic_lock(lambda *args, **kwargs: f"favorite:count:{kwargs.get('favorite_type')}:{kwargs.get('target_id')}")
+    @atomic_transaction()
     async def update_favorite_count(self, favorite_type: str, target_id: int, increment: bool = True) -> bool:
         """更新收藏计数 - 带分布式锁"""
         try:
