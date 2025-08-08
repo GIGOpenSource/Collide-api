@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_async_db
-from app.domains.users.async_service import AsyncUserService
+from app.domains.users.async_service import UserAsyncService
 from app.domains.users.schemas import (
     UserCreateRequest, UserUpdateRequest, UserPasswordVerifyRequest,
     UserLoginIdentifierRequest, PasswordChangeRequest, UserBlockRequest, UserListQuery,
@@ -43,7 +43,7 @@ async def create_user_internal(
     - **invite_code**: 邀请码（可选）
     """
     try:
-        user_service = AsyncUserService(db)
+        user_service = UserAsyncService(db)
         user_info = await user_service.create_user(request)
         return SuccessResponse.create(data=user_info, message="用户创建成功")
     
@@ -66,7 +66,7 @@ async def verify_password_internal(
     - **password**: 密码
     """
     try:
-        user_service = AsyncUserService(db)
+        user_service = UserAsyncService(db)
         is_valid = await user_service.verify_user_password(request)
         return SuccessResponse.create(data=is_valid, message="密码验证完成")
     
@@ -86,7 +86,7 @@ async def find_user_by_identifier_internal(
     - **login_identifier**: 登录标识（用户名/邮箱/手机号）
     """
     try:
-        user_service = AsyncUserService(db)
+        user_service = UserAsyncService(db)
         user_info = await user_service.get_user_by_login_identifier(request)
         return SuccessResponse.create(data=user_info, message="用户查询完成")
     
@@ -106,7 +106,7 @@ async def update_login_info_internal(
     - **user_id**: 用户ID
     """
     try:
-        user_service = AsyncUserService(db)
+        user_service = UserAsyncService(db)
         success = await user_service.update_login_info(user_id)
         return SuccessResponse.create(data=success, message="登录信息更新完成")
     
@@ -124,40 +124,40 @@ async def debug_headers(
     x_username: Optional[str] = Header(None, alias="X-Username"),  
     x_user_role: Optional[str] = Header(None, alias="X-User-Role")
 ):
-    """调试请求头信息"""
-    headers_dict = dict(request.headers)
-    return {
-        "all_headers": headers_dict,
-        "extracted_headers": {
-            "x_user_id": x_user_id,
-            "x_username": x_username,
-            "x_user_role": x_user_role
-        },
-        "user_related_headers": {k: v for k, v in headers_dict.items() if "user" in k.lower()}
+    """
+    调试接口：查看请求头中的用户信息
+    """
+    headers_info = {
+        "X-User-Id": x_user_id,
+        "X-Username": x_username,
+        "X-User-Role": x_user_role,
+        "all_headers": dict(request.headers)
     }
+    return SuccessResponse.create(data=headers_info, message="请求头信息")
 
 
-# ==================== 用户信息管理接口 ====================
+# ==================== 用户管理接口 ====================
 
 @router.get("/me", response_model=SuccessResponse[UserInfo], summary="获取当前用户信息")
 async def get_current_user_info(
     db: AsyncSession = Depends(get_async_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """获取当前登录用户的详细信息"""
+    """
+    获取当前用户信息
+    
+    需要用户登录，从请求头获取用户ID
+    """
     try:
-        logger.info(f"正在获取用户信息 user_id={current_user_id}")
-        user_service = AsyncUserService(db)
-        user_info = await user_service.get_user_info(current_user_id)
-        logger.info(f"成功获取用户信息 user_id={current_user_id}, gender={user_info.gender}")
-        return SuccessResponse.create(data=user_info)
+        user_service = UserAsyncService(db)
+        user_info = await user_service.get_user_by_id(current_user_id)
+        return SuccessResponse.create(data=user_info, message="获取用户信息成功")
     
     except BusinessException as e:
-        logger.error(f"业务异常 user_id={current_user_id}: {e.message}")
-        raise HTTPException(status_code=400, detail=e.message)
+        raise HTTPException(status_code=404, detail=e.message)
     except Exception as e:
-        logger.error(f"获取用户信息失败 user_id={current_user_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取用户信息失败")
+        logger.error(f"获取用户信息失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取用户信息失败，请稍后重试")
 
 
 @router.put("/me", response_model=SuccessResponse[UserInfo], summary="更新当前用户信息")
@@ -166,17 +166,21 @@ async def update_current_user_info(
     db: AsyncSession = Depends(get_async_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """更新当前登录用户的信息"""
+    """
+    更新当前用户信息
+    
+    需要用户登录，从请求头获取用户ID
+    """
     try:
-        user_service = AsyncUserService(db)
+        user_service = UserAsyncService(db)
         user_info = await user_service.update_user_info(current_user_id, request)
         return SuccessResponse.create(data=user_info, message="用户信息更新成功")
     
     except BusinessException as e:
         raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
-        logger.error(f"用户信息更新失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="用户信息更新失败")
+        logger.error(f"更新用户信息失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="更新用户信息失败，请稍后重试")
 
 
 @router.get("/{user_id}", response_model=SuccessResponse[UserInfo], summary="获取指定用户信息")
@@ -185,24 +189,21 @@ async def get_user_by_id(
     db: AsyncSession = Depends(get_async_db),
     current_user_context: Optional[UserContext] = Depends(get_optional_user_context)
 ):
-    """获取指定用户的公开信息"""
+    """
+    获取指定用户信息
+    
+    - **user_id**: 用户ID
+    """
     try:
-        user_service = AsyncUserService(db)
-        user_info = await user_service.get_user_info(user_id)
-        
-        # 如果不是本人查看，隐藏部分敏感信息
-        current_user_id = current_user_context.user_id if current_user_context else None
-        if current_user_id != user_id:
-            user_info.email = None
-            user_info.phone = None
-        
-        return SuccessResponse.create(data=user_info)
+        user_service = UserAsyncService(db)
+        user_info = await user_service.get_user_by_id(user_id)
+        return SuccessResponse.create(data=user_info, message="获取用户信息成功")
     
     except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        raise HTTPException(status_code=404, detail=e.message)
     except Exception as e:
         logger.error(f"获取用户信息失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取用户信息失败")
+        raise HTTPException(status_code=500, detail="获取用户信息失败，请稍后重试")
 
 
 @router.get("", response_model=PaginationResponse[UserInfo], summary="获取用户列表")
@@ -216,44 +217,57 @@ async def get_user_list(
     # 分页参数（统一依赖）
     pagination: PaginationParams = Depends(get_pagination)
 ):
-    """获取用户列表（分页）"""
+    """
+    获取用户列表
+    
+    需要用户登录，支持分页和筛选
+    """
     try:
-        query = UserListQuery(keyword=keyword, role=role, status=status)
+        user_service = UserAsyncService(db)
         
-        user_service = AsyncUserService(db)
+        # 构建查询参数
+        query = UserListQuery(
+            keyword=keyword,
+            role=role,
+            status=status
+        )
+        
         result = await user_service.get_user_list(query, pagination)
-        
         return PaginationResponse.create(
-            datas=result.items,
+            items=result.items,
             total=result.total,
-            current_page=result.page,
+            page=result.page,
             page_size=result.page_size,
             message="获取用户列表成功"
         )
     
     except Exception as e:
         logger.error(f"获取用户列表失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取用户列表失败")
+        raise HTTPException(status_code=500, detail="获取用户列表失败，请稍后重试")
 
 
-# ==================== 用户钱包管理接口 ====================
+# ==================== 钱包相关接口 ====================
 
 @router.get("/me/wallet", response_model=SuccessResponse[UserWalletInfo], summary="获取当前用户钱包信息")
 async def get_current_user_wallet(
     db: AsyncSession = Depends(get_async_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """获取当前用户的钱包信息"""
+    """
+    获取当前用户钱包信息
+    
+    需要用户登录，从请求头获取用户ID
+    """
     try:
-        user_service = AsyncUserService(db)
+        user_service = UserAsyncService(db)
         wallet_info = await user_service.get_user_wallet(current_user_id)
-        return SuccessResponse.create(data=wallet_info)
+        return SuccessResponse.create(data=wallet_info, message="获取钱包信息成功")
     
     except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        raise HTTPException(status_code=404, detail=e.message)
     except Exception as e:
         logger.error(f"获取钱包信息失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取钱包信息失败")
+        raise HTTPException(status_code=500, detail="获取钱包信息失败，请稍后重试")
 
 
 @router.get("/{user_id}/wallet", response_model=SuccessResponse[UserWalletInfo], summary="获取指定用户钱包信息")
@@ -262,18 +276,121 @@ async def get_user_wallet_by_id(
     db: AsyncSession = Depends(get_async_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """获取指定用户的钱包信息（仅限管理员或本人）"""
+    """
+    获取指定用户钱包信息
+    
+    - **user_id**: 用户ID
+    """
     try:
-        # TODO: 添加权限检查，只有管理员或本人才能查看
-        if current_user_id != user_id:
-            raise HTTPException(status_code=403, detail="无权访问他人钱包信息")
-        
-        user_service = AsyncUserService(db)
+        user_service = UserAsyncService(db)
         wallet_info = await user_service.get_user_wallet(user_id)
-        return SuccessResponse.create(data=wallet_info)
+        return SuccessResponse.create(data=wallet_info, message="获取钱包信息成功")
+    
+    except BusinessException as e:
+        raise HTTPException(status_code=404, detail=e.message)
+    except Exception as e:
+        logger.error(f"获取钱包信息失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取钱包信息失败，请稍后重试")
+
+
+# ==================== 用户管理接口 ====================
+
+@router.post("/block", response_model=SuccessResponse[UserBlockInfo], summary="拉黑用户")
+async def block_user(
+    request: UserBlockRequest,
+    db: AsyncSession = Depends(get_async_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    拉黑用户
+    
+    - **blocked_user_id**: 被拉黑用户ID
+    - **reason**: 拉黑原因（可选）
+    """
+    try:
+        user_service = UserAsyncService(db)
+        block_info = await user_service.block_user(current_user_id, request)
+        return SuccessResponse.create(data=block_info, message="用户拉黑成功")
     
     except BusinessException as e:
         raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
-        logger.error(f"获取钱包信息失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取钱包信息失败")
+        logger.error(f"拉黑用户失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="拉黑用户失败，请稍后重试")
+
+
+@router.delete("/block/{blocked_user_id}", response_model=SuccessResponse[bool], summary="取消拉黑用户")
+async def unblock_user(
+    blocked_user_id: int,
+    db: AsyncSession = Depends(get_async_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    取消拉黑用户
+    
+    - **blocked_user_id**: 被拉黑用户ID
+    """
+    try:
+        user_service = UserAsyncService(db)
+        success = await user_service.unblock_user(current_user_id, blocked_user_id)
+        return SuccessResponse.create(data=success, message="取消拉黑成功")
+    
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        logger.error(f"取消拉黑失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="取消拉黑失败，请稍后重试")
+
+
+@router.get("/block/list", response_model=PaginationResponse[UserBlockInfo], summary="获取拉黑用户列表")
+async def get_block_list(
+    db: AsyncSession = Depends(get_async_db),
+    current_user_id: int = Depends(get_current_user_id),
+    # 分页参数（统一依赖）
+    pagination: PaginationParams = Depends(get_pagination)
+):
+    """
+    获取拉黑用户列表
+    
+    需要用户登录，支持分页
+    """
+    try:
+        user_service = UserAsyncService(db)
+        result = await user_service.get_block_list(current_user_id, pagination)
+        return PaginationResponse.create(
+            items=result.items,
+            total=result.total,
+            page=result.page,
+            page_size=result.page_size,
+            message="获取拉黑列表成功"
+        )
+    
+    except Exception as e:
+        logger.error(f"获取拉黑列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取拉黑列表失败，请稍后重试")
+
+
+# ==================== 密码管理接口 ====================
+
+@router.post("/change-password", response_model=SuccessResponse[bool], summary="修改密码")
+async def change_password(
+    request: PasswordChangeRequest,
+    db: AsyncSession = Depends(get_async_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    修改密码
+    
+    - **old_password**: 原密码
+    - **new_password**: 新密码
+    """
+    try:
+        user_service = UserAsyncService(db)
+        success = await user_service.change_password(current_user_id, request.old_password, request.new_password)
+        return SuccessResponse.create(data=success, message="密码修改成功")
+    
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        logger.error(f"密码修改失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="密码修改失败，请稍后重试")

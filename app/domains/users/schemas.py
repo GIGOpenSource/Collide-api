@@ -44,6 +44,44 @@ class UserBase(BaseModel):
 
 # ==================== 请求模型 ====================
 
+class UserCreate(BaseModel):
+    """用户创建请求"""
+    username: str = Field(..., min_length=3, max_length=50, description="用户名")
+    password: str = Field(..., min_length=6, max_length=20, description="密码")
+    email: Optional[EmailStr] = Field(None, description="邮箱")
+    nickname: Optional[str] = Field(None, min_length=1, max_length=100, description="昵称")
+    
+    @validator('username')
+    def validate_username(cls, v):
+        if not re.match(r'^[a-zA-Z0-9_]+$', v):
+            raise ValueError('用户名只能包含字母、数字和下划线')
+        return v
+
+
+class UserUpdate(BaseModel):
+    """用户更新请求"""
+    username: Optional[str] = Field(None, min_length=3, max_length=50, description="用户名")
+    email: Optional[EmailStr] = Field(None, description="邮箱")
+    nickname: Optional[str] = Field(None, min_length=1, max_length=100, description="昵称")
+    avatar: Optional[str] = Field(None, max_length=500, description="头像URL")
+    bio: Optional[str] = Field(None, description="个人简介")
+    status: Optional[str] = Field(None, description="用户状态")
+    
+    @validator('username')
+    def validate_username(cls, v):
+        if v and not re.match(r'^[a-zA-Z0-9_]+$', v):
+            raise ValueError('用户名只能包含字母、数字和下划线')
+        return v
+
+
+class UserQuery(BaseModel):
+    """用户查询参数"""
+    username: Optional[str] = Field(None, description="用户名")
+    email: Optional[str] = Field(None, description="邮箱")
+    nickname: Optional[str] = Field(None, description="昵称")
+    status: Optional[str] = Field(None, description="用户状态")
+
+
 class UserCreateRequest(BaseModel):
     """用户创建请求（供认证服务调用）"""
     username: str = Field(..., min_length=3, max_length=50, description="用户名")
