@@ -4,7 +4,7 @@
 """
 from sqlalchemy import Column, BigInteger, String, Text, Integer, DateTime, SmallInteger
 from sqlalchemy.sql import func
-from sqlalchemy.types import DECIMAL
+from sqlalchemy.types import DECIMAL, LONGTEXT, TINYINT
 
 from app.database.connection import Base
 
@@ -58,7 +58,7 @@ class ContentChapter(Base):
     content_id = Column(BigInteger, nullable=False, comment='内容ID')
     chapter_num = Column(Integer, nullable=False, comment='章节号')
     title = Column(String(200), nullable=False, comment='章节标题')
-    content = Column(Text, comment='章节内容')
+    content = Column(LONGTEXT, comment='章节内容')
     word_count = Column(Integer, nullable=False, default=0, comment='字数')
     status = Column(String(20), nullable=False, default='DRAFT', comment='状态：DRAFT、PUBLISHED')
     create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment='创建时间')
@@ -118,14 +118,14 @@ class ContentPayment(Base):
     original_price = Column(BigInteger, comment='原价（用于折扣显示）')
     
     # 权限配置
-    vip_free = Column(SmallInteger, nullable=False, default=0, comment='会员免费：0否，1是')
-    vip_only = Column(SmallInteger, nullable=False, default=0, comment='是否只有VIP才能购买：0否，1是')
-    trial_enabled = Column(SmallInteger, nullable=False, default=0, comment='是否支持试读：0否，1是')
+    vip_free = Column(TINYINT, nullable=False, default=0, comment='会员免费：0否，1是')
+    vip_only = Column(TINYINT, nullable=False, default=0, comment='是否只有VIP才能购买：0否，1是')
+    trial_enabled = Column(TINYINT, nullable=False, default=0, comment='是否支持试读：0否，1是')
     trial_content = Column(Text, comment='试读内容')
     trial_word_count = Column(Integer, nullable=False, default=0, comment='试读字数')
     
     # 时效配置
-    is_permanent = Column(SmallInteger, nullable=False, default=1, comment='是否永久有效：0否，1是')
+    is_permanent = Column(TINYINT, nullable=False, default=1, comment='是否永久有效：0否，1是')
     valid_days = Column(Integer, comment='有效天数（非永久时使用）')
     
     # 销售统计

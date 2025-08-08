@@ -36,7 +36,7 @@ class ContentAsyncService:
             content_type=content_data.content_type,
             category_id=content_data.category_id,
             author_id=user_id,
-            content=content_data.content_data,
+            content_data=content_data.content_data,
             cover_url=content_data.cover_url,
             tags=content_data.tags,
             status="DRAFT",
@@ -96,7 +96,7 @@ class ContentAsyncService:
         if content_data.category_id is not None:
             update_data["category_id"] = content_data.category_id
         if content_data.content_data is not None:
-            update_data["content"] = content_data.content_data
+            update_data["content_data"] = content_data.content_data
         if content_data.cover_url is not None:
             update_data["cover_url"] = content_data.cover_url
         if content_data.tags is not None:
@@ -402,11 +402,15 @@ class ContentAsyncService:
         payment = ContentPayment(
             content_id=content_id,
             payment_type=payment_data.payment_type,
-            price=payment_data.price,
             coin_price=payment_data.coin_price,
-            vip_discount=payment_data.vip_discount,
-            trial_duration=payment_data.trial_duration,
-            expire_days=payment_data.expire_days
+            original_price=payment_data.original_price,
+            vip_free=payment_data.vip_free,
+            vip_only=payment_data.vip_only,
+            trial_enabled=payment_data.trial_enabled,
+            trial_content=payment_data.trial_content,
+            trial_word_count=payment_data.trial_word_count,
+            is_permanent=payment_data.is_permanent,
+            valid_days=payment_data.valid_days
         )
 
         self.db.add(payment)
