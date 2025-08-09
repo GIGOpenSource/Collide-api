@@ -11,7 +11,7 @@ from app.common.dependencies import get_current_user_context, UserContext, get_p
 from app.common.pagination import PaginationParams
 from app.common.exceptions import BusinessException
 from app.domains.follow.async_service import FollowAsyncService
-from app.domains.follow.schemas import FollowToggleRequest, FollowInfo, FollowQuery
+from app.domains.follow.schemas import FollowToggleRequest, FollowInfo, FollowQuery, FollowStatus, FollowStats
 
 
 router = APIRouter(prefix="/api/v1/follows", tags=["关注管理"])
@@ -66,21 +66,34 @@ async def get_follow_list(
         raise HTTPException(status_code=500, detail="获取关注列表失败")
 
 
-@router.get("/check/{followee_id}", response_model=SuccessResponse[dict], summary="检查关注状态")
-async def check_follow_status(
-    followee_id: int,
+@router.get("/status/{target_user_id}", response_model=SuccessResponse[FollowStatus], summary="检查详细关注状态")
+async def get_follow_status(
+    target_user_id: int,
     current_user: UserContext = Depends(get_current_user_context),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """检查是否关注了指定用户"""
+    """检查当前用户与目标用户的关注状态（是否关注/是否被关注/是否互关）"""
     try:
         service = FollowAsyncService(db)
-        is_following = await service.check_follow_status(current_user.user_id, followee_id)
-        return SuccessResponse.create(
-            data={"isFollowing": is_following},
-            message="查询成功"
-        )
+        status = await service.get_follow_status(current_user.user_id, target_user_id)
+        return SuccessResponse.create(data=status, message="查询成功")
     except BusinessException as e:
         raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
-        raise HTTPException(status_code=500, detail="查询关注状态失败") 
+        raise HTTPException(status_code=500, detail="查询关注状态失败")
+
+
+@router.get("/stats/{user_id}", response_model=SuccessResponse[FollowStats], summary="获取用户关注统计")
+async def get_follow_stats(
+    user_id: int,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """获取指定用户的关注数和粉丝数"""
+    try:
+        service = FollowAsyncService(db)
+        stats = await service.get_follow_stats(user_id)
+        return SuccessResponse.create(data=stats, message="查询成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="查询关注统计失败") 

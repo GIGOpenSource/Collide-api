@@ -30,5 +30,18 @@ class FollowInfo(BaseModel):
 class FollowQuery(BaseModel):
     """关注查询参数"""
     user_id: Optional[int] = Field(None, description="用户ID")
-    follow_type: Optional[str] = Field(None, description="关注类型：following-我关注的、followers-关注我的")
-    status: Optional[str] = Field(None, description="状态：active、cancelled") 
+    follow_type: Optional[str] = Field(None, description="关注类型")
+    status: Optional[str] = Field(None, description="状态")
+
+
+class FollowStatus(BaseModel):
+    """关注状态详情"""
+    following: bool = Field(..., description="我是否关注了TA")
+    followed_by: bool = Field(..., description="TA是否关注了我")
+    mutual: bool = Field(..., description="是否互相关注")
+
+
+class FollowStats(BaseModel):
+    """关注统计"""
+    following_count: int = Field(..., description="关注数")
+    follower_count: int = Field(..., description="粉丝数") 

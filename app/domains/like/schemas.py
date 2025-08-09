@@ -24,3 +24,18 @@ class LikeInfo(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
+class LikeQuery(BaseModel):
+    """我的点赞查询参数"""
+    like_type: Optional[str] = Field(None, description="点赞类型：CONTENT、COMMENT、DYNAMIC")
+
+
+class LikeUserInfo(BaseModel):
+    """点赞用户信息"""
+    user_id: int = Field(..., description="用户ID")
+    user_nickname: str = Field(..., description="用户昵称")
+    user_avatar: Optional[str] = Field(None, description="用户头像")
+    like_time: datetime = Field(..., description="点赞时间")
+
+    model_config = {"from_attributes": True}
+

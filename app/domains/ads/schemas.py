@@ -1,7 +1,7 @@
 """
 广告模块 Pydantic 模型
 """
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -58,3 +58,12 @@ class AdQuery(BaseModel):
     ad_type: Optional[str] = Field(None, description="广告类型")
     is_active: Optional[bool] = Field(None, description="是否启用")
     keyword: Optional[str] = Field(None, description="关键词搜索") 
+    # 扩展多条件
+    ad_types: Optional[List[str]] = Field(None, description="广告类型集合，OR 关系")
+    ad_name: Optional[str] = Field(None, description="广告名称，模糊匹配")
+    ad_title: Optional[str] = Field(None, description="广告标题，模糊匹配")
+    target_type: Optional[str] = Field(None, description="链接打开方式筛选：_blank/_self")
+    start_time: Optional[datetime] = Field(None, description="创建时间起")
+    end_time: Optional[datetime] = Field(None, description="创建时间止")
+    min_sort: Optional[int] = Field(None, description="最小排序权重")
+    max_sort: Optional[int] = Field(None, description="最大排序权重")

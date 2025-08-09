@@ -94,7 +94,7 @@ class ContentUpdate(BaseModel):
     tags: Optional[str] = Field(None, description="标签")
     category_id: Optional[int] = Field(None, description="分类ID")
     category_name: Optional[str] = Field(None, max_length=100, description="分类名称")
-    status: Optional[str] = Field(None, description="状态")
+    # status: Optional[str] = Field(None, description="状态") # 状态应由专门接口控制，如发布、下线
 
 
 class ContentInfo(ContentBase):
@@ -274,8 +274,8 @@ class ContentQueryParams(BaseModel):
     )
     category_id: Optional[int] = Field(None, description="分类ID")
     author_id: Optional[int] = Field(None, description="作者ID")
-    status: Optional[str] = Field(None, description="状态")
-    review_status: Optional[str] = Field(None, description="审核状态")
+    # status: Optional[str] = Field(None, description="状态")
+    # review_status: Optional[str] = Field(None, description="审核状态")
     keyword: Optional[str] = Field(None, description="关键词搜索")
     
     # 统计数据筛选条件

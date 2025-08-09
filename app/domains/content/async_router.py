@@ -6,7 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_async_db
-from app.common.dependencies import get_current_user_context, UserContext, get_optional_user_context, get_pagination
+from app.common.dependencies import (
+    get_current_user_context, 
+    UserContext, 
+    get_pagination, 
+    get_optional_user_context,
+    require_blogger_role
+)
 from app.common.response import SuccessResponse, PaginationResponse, handle_business_error, handle_system_error, handle_not_found_error
 from app.common.pagination import PaginationParams
 from app.common.exceptions import BusinessException
@@ -30,7 +36,7 @@ router = APIRouter(prefix="/api/v1/content", tags=["内容管理"])
 @router.post("/", response_model=SuccessResponse[ContentInfo], summary="创建内容", description="创建新的内容（小说、漫画、视频等）")
 async def create_content(
     content_data: ContentCreate,
-    current_user: UserContext = Depends(get_current_user_context),
+    current_user: UserContext = Depends(require_blogger_role),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -49,8 +55,13 @@ async def create_content(
     """
     try:
         service = ContentAsyncService(db)
-        content = await service.create_content(content_data, current_user.user_id)
-        return SuccessResponse.create(data=content, message="内容创建成功")
+        content_info = await service.create_content(
+            content_data=content_data, 
+            user_id=current_user.user_id,
+            user_nickname=current_user.username,
+            user_avatar=None  # 假设暂时没有头像信息
+        )
+        return SuccessResponse.create(data=content_info, message="内容创建成功，等待审核")
     
     except BusinessException as e:
         return handle_business_error(e.message, e.code)
@@ -79,8 +90,8 @@ async def get_content(
     try:
         service = ContentAsyncService(db)
         user_id = current_user.user_id if current_user else None
-        content = await service.get_content_by_id(content_id, user_id)
-        return SuccessResponse.create(data=content, message="获取成功")
+        info = await service.get_content_by_id(content_id=content_id, current_user_id=user_id)
+        return SuccessResponse.create(data=info)
     
     except BusinessException as e:
         return handle_business_error(e.message, e.code)
@@ -93,7 +104,7 @@ async def get_content(
 async def update_content(
     content_id: int,
     content_data: ContentUpdate,
-    current_user: UserContext = Depends(get_current_user_context),
+    current_user: UserContext = Depends(require_blogger_role),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -115,8 +126,12 @@ async def update_content(
     """
     try:
         service = ContentAsyncService(db)
-        content = await service.update_content(content_id, content_data, current_user.user_id)
-        return SuccessResponse.create(data=content, message="内容更新成功")
+        content_info = await service.update_content(
+            content_id=content_id, 
+            content_data=content_data, 
+            user_id=current_user.user_id
+        )
+        return SuccessResponse.create(data=content_info, message="更新成功")
     
     except BusinessException as e:
         return handle_business_error(e.message, e.code)
@@ -128,7 +143,7 @@ async def update_content(
 @router.delete("/{content_id}", response_model=SuccessResponse[bool], summary="删除内容", description="删除指定内容及其关联章节和付费配置")
 async def delete_content(
     content_id: int,
-    current_user: UserContext = Depends(get_current_user_context),
+    current_user: UserContext = Depends(require_blogger_role),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -141,8 +156,8 @@ async def delete_content(
     """
     try:
         service = ContentAsyncService(db)
-        success = await service.delete_content(content_id, current_user.user_id)
-        return SuccessResponse.create(data=success, message="内容删除成功")
+        success = await service.delete_content(content_id=content_id, user_id=current_user.user_id)
+        return SuccessResponse.create(data=success, message="删除成功")
     
     except BusinessException as e:
         return handle_business_error(e.message, e.code)
@@ -155,7 +170,7 @@ async def delete_content(
 async def publish_content(
     content_id: int,
     publish_request: PublishContentRequest,
-    current_user: UserContext = Depends(get_current_user_context),
+    current_user: UserContext = Depends(require_blogger_role),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -167,14 +182,42 @@ async def publish_content(
     """
     try:
         service = ContentAsyncService(db)
-        content = await service.publish_content(content_id, publish_request, current_user.user_id)
-        return SuccessResponse.create(data=content, message="内容发布成功")
+        info = await service.publish_content(
+            content_id=content_id, 
+            publish_data=publish_request, 
+            user_id=current_user.user_id
+        )
+        return SuccessResponse.create(data=info, message="发布成功")
     
     except BusinessException as e:
         return handle_business_error(e.message, e.code)
     except Exception as e:
         logger.error(f"发布内容失败: {str(e)}")
         return handle_system_error("发布内容失败，请稍后重试")
+
+
+@router.put("/{content_id}/offline", response_model=SuccessResponse[ContentInfo], summary="下线内容", description="将已发布内容下线")
+async def offline_content(
+    content_id: int,
+    current_user: UserContext = Depends(require_blogger_role),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """
+    下线内容
+    
+    将已发布的内容下线，只有内容作者可以执行此操作。
+    
+    需要登录权限且只能下线自己的内容。
+    """
+    try:
+        service = ContentAsyncService(db)
+        info = await service.offline_content(content_id=content_id, user_id=current_user.user_id)
+        return SuccessResponse.create(data=info, message="下线成功")
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"下线内容失败: {str(e)}")
+        return handle_system_error("下线内容失败，请稍后重试")
 
 
 @router.get("/", response_model=PaginationResponse[ContentInfo], summary="获取内容列表", description="支持多种筛选条件的内容列表查询")
@@ -217,7 +260,8 @@ async def get_content_list(
     sort_order: str = Query("desc", description="排序方向：asc(升序), desc(降序)"),
     # 分页参数（统一依赖）
     pagination: PaginationParams = Depends(get_pagination),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: Optional[UserContext] = Depends(get_optional_user_context)
 ):
     """
     获取内容列表 - 支持多维度筛选和排序
@@ -280,7 +324,7 @@ async def get_content_list(
             sort_by=sort_by,
             sort_order=sort_order
         )
-        result = await service.get_content_list(query_params, pagination)
+        result = await service.get_content_list(query_params, pagination, current_user_id=current_user.user_id if current_user else None)
         return PaginationResponse.from_pagination_result(result, "获取成功")
     except BusinessException as e:
         return handle_business_error(e.message, e.code)
@@ -293,7 +337,9 @@ async def get_content_list(
 async def update_content_stats(
     content_id: int,
     stats_update: ContentStatsUpdate,
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
+    # 此接口通常由内部服务或其他服务调用，但如果需要用户触发，也应考虑权限
+    # current_user: UserContext = Depends(get_current_user_context)
 ):
     """更新内容统计数据"""
     try:
@@ -336,7 +382,7 @@ async def score_content(
 async def create_chapter(
     content_id: int,
     chapter_data: ChapterCreate,
-    current_user: UserContext = Depends(get_current_user_context),
+    current_user: UserContext = Depends(require_blogger_role),
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -413,7 +459,7 @@ async def get_chapter(
 async def update_chapter(
     chapter_id: int,
     chapter_data: ChapterUpdate,
-    current_user: UserContext = Depends(get_current_user_context),
+    current_user: UserContext = Depends(require_blogger_role),
     db: AsyncSession = Depends(get_async_db)
 ):
     """更新章节"""
@@ -431,7 +477,7 @@ async def update_chapter(
 @router.delete("/chapters/{chapter_id}", response_model=SuccessResponse[bool], summary="删除章节", description="删除指定章节")
 async def delete_chapter(
     chapter_id: int,
-    current_user: UserContext = Depends(get_current_user_context),
+    current_user: UserContext = Depends(require_blogger_role),
     db: AsyncSession = Depends(get_async_db)
 ):
     """删除章节"""
@@ -452,7 +498,7 @@ async def delete_chapter(
 async def create_content_payment(
     content_id: int,
     payment_data: ContentPaymentCreate,
-    current_user: UserContext = Depends(get_current_user_context),
+    current_user: UserContext = Depends(require_blogger_role),
     db: AsyncSession = Depends(get_async_db)
 ):
     """创建内容付费配置"""
@@ -467,6 +513,31 @@ async def create_content_payment(
     except Exception as e:
         logger.error(f"创建付费配置失败: {str(e)}")
         return handle_system_error("创建付费配置失败，请稍后重试")
+
+
+@router.put("/{content_id}/payment", response_model=SuccessResponse[ContentPaymentInfo], summary="更新付费配置", description="更新内容付费配置")
+async def update_content_payment(
+    content_id: int,
+    payment_data: ContentPaymentUpdate,
+    current_user: UserContext = Depends(require_blogger_role),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """
+    更新内容付费配置，需要Blogger角色且为内容所有者
+    """
+    try:
+        service = ContentAsyncService(db)
+        info = await service.update_content_payment(
+            content_id=content_id,
+            payment_data=payment_data,
+            user_id=current_user.user_id
+        )
+        return SuccessResponse.create(data=info)
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"更新付费配置失败: {str(e)}")
+        return handle_system_error("更新付费配置失败，请稍后重试")
 
 
 @router.get("/{content_id}/payment", response_model=SuccessResponse[Optional[ContentPaymentInfo]], summary="获取付费配置", description="查询指定内容的付费配置")
@@ -655,7 +726,7 @@ async def get_my_contents(
             sort_by=sort_by,
             sort_order=sort_order
         )
-        result = await service.get_content_list(query_params, pagination)
+        result = await service.get_content_list(query_params, pagination, current_user_id=current_user.user_id)
         return PaginationResponse.from_pagination_result(result, "获取成功")
     except BusinessException as e:
         return handle_business_error(e.message, e.code)

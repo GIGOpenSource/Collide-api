@@ -58,7 +58,7 @@ class CommentQuery(BaseModel):
     target_id: Optional[int] = Field(None, description="目标对象过滤")
     user_id: Optional[int] = Field(None, description="用户过滤")
     parent_comment_id: Optional[int] = Field(None, description="父评论ID过滤")
-    status: Optional[str] = Field(None, description="状态过滤")
+    # status: Optional[str] = Field(None, description="状态过滤")
 
 
 # 解决循环引用

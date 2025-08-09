@@ -117,6 +117,14 @@ CREATE TABLE `t_payment_notify_log` (
   `notify_type`     VARCHAR(20)  NOT NULL                COMMENT '通知类型：payment、refund',
   `notify_data`     TEXT         NOT NULL                COMMENT '原始回调数据',
   `notify_sign`     VARCHAR(64)                          COMMENT '回调签名',
+  -- 结构化关键字段（便于对账检索）
+  `notify_code`     INT                                   COMMENT '回调状态码，200表示成功',
+  `notify_merc_id`  VARCHAR(50)                           COMMENT '商户编号',
+  `notify_oid`      VARCHAR(64)                           COMMENT '平台订单号oid',
+  `notify_pay_money` VARCHAR(32)                          COMMENT '实际到账金额（字符串，兼容USDT）',
+  `notify_pay_time` DATETIME                              COMMENT '支付时间',
+  `notify_trade_no` VARCHAR(64)                           COMMENT '商户订单号tradeNo',
+  `notify_payload`  VARCHAR(100)                          COMMENT '备注/扩展参数',
   `sign_verify`     TINYINT(1)   DEFAULT 0               COMMENT '签名验证结果：0失败、1成功',
   
   -- 处理结果
@@ -134,9 +142,31 @@ CREATE TABLE `t_payment_notify_log` (
   PRIMARY KEY (`id`),
   KEY `idx_order_no` (`order_no`),
   KEY `idx_platform_order` (`platform_order_no`),
+  KEY `idx_notify_trade_no`(`notify_trade_no`),
+  KEY `idx_notify_oid`(`notify_oid`),
   KEY `idx_channel_status` (`channel_code`, `process_status`),
   KEY `idx_notify_time` (`notify_time` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='支付回调日志表';
+
+-- 上游下单请求日志表（便于排障和重试）
+DROP TABLE IF EXISTS `t_payment_request_log`;
+CREATE TABLE `t_payment_request_log` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `order_no` VARCHAR(64) NOT NULL COMMENT '商户订单号',
+  `channel_code` VARCHAR(50) NOT NULL COMMENT '渠道代码',
+  `attempt_no` INT DEFAULT 1 COMMENT '第N次尝试',
+  `request_time_ms` BIGINT NOT NULL COMMENT '请求时间(毫秒)',
+  `request_body` TEXT NOT NULL COMMENT '上游下单请求体',
+  `request_sign` VARCHAR(64) COMMENT '请求签名',
+  `response_time_ms` BIGINT COMMENT '响应时间(毫秒)',
+  `http_status` INT COMMENT 'HTTP状态码',
+  `response_body` TEXT COMMENT '响应体',
+  `response_sign` VARCHAR(64) COMMENT '响应签名',
+  `success` TINYINT(1) DEFAULT 0 COMMENT '是否成功',
+  `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_channel` (`order_no`, `channel_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='上游下单请求日志';
 
 -- 支付统计表（可选，用于快速统计查询）
 DROP TABLE IF EXISTS `t_payment_statistics`;

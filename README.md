@@ -61,6 +61,12 @@ DATABASE_URL=mysql+pymysql://username:password@localhost:3306/collide
 JWT_SECRET_KEY=your-super-secret-jwt-key-here
 
 # 其他配置...
+
+# 支付相关（可选）
+# 回调对外根域名（留空则使用相对路径）
+PAYMENT_PUBLIC_BASE_URL=https://api.yourdomain.com
+# 上游支付网关默认基础地址（当渠道未配置 api_gateway 时使用）
+DEFAULT_PAYMENT_API_BASE_URL=https://pay.yourgateway.com
 ```
 
 ### 4. 配置Nacos（可选）

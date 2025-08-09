@@ -45,5 +45,10 @@ class CategoryQuery(BaseModel):
     """分类列表查询参数"""
     keyword: Optional[str] = Field(None, description="关键词（按名称模糊搜索）")
     parent_id: Optional[int] = Field(None, ge=0, description="父分类ID过滤")
-    status: Optional[str] = Field(None, description="状态过滤")
+    # status: Optional[str] = Field(None, description="状态过滤") # 移除，强制active
+
+
+class CategoryTreeNode(CategoryInfo):
+    """分类树节点"""
+    children: List['CategoryTreeNode'] = Field([], description="子分类列表")
 

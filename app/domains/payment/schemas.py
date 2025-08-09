@@ -5,12 +5,13 @@ from pydantic import BaseModel, Field
 
 
 class PaymentCreate(BaseModel):
-    """创建支付单请求"""
-    order_no: str = Field(..., description="商户订单号")
+    """创建支付单请求（安全版）
+    不信任前端金额，仅传 orderId 与 userId，金额由后端根据订单计算。
+    """
+    order_id: int = Field(..., description="订单ID")
+    user_id: int = Field(..., description="用户ID")
     channel_code: str = Field(..., description="支付渠道代码")
     pay_type: str = Field(..., description="支付类型：alipay、wechat 等")
-    amount: float = Field(..., ge=0, description="支付金额")
-    notify_url: Optional[str] = None
     return_url: Optional[str] = None
 
 

@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     # 其他配置
     service_description: Optional[str] = None
     service_tags: Optional[str] = None
+    # 对外回调地址根域名（可选），例如：https://api.example.com
+    payment_public_base_url: Optional[str] = None
+    # 上游支付网关默认基础地址（可选），例如：https://pay.example.com
+    default_payment_api_base_url: Optional[str] = None
     
     model_config = {
         "env_file": ".env",

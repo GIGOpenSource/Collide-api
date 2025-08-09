@@ -14,56 +14,56 @@ from app.domains.goods.async_service import GoodsAsyncService
 from app.domains.goods.schemas import GoodsCreate, GoodsUpdate, GoodsInfo, GoodsQuery
 
 
-router = APIRouter(prefix="/api/v1/goods", tags=["商品管理"])
+router = APIRouter(prefix="/api/v1/goods", tags=["商品查询"])
 
 
-@router.post("/", response_model=SuccessResponse[GoodsInfo], summary="创建商品")
-async def create_goods(
-    req: GoodsCreate,
-    db: AsyncSession = Depends(get_async_db),
-):
-    """创建商品"""
-    try:
-        service = GoodsAsyncService(db)
-        goods = await service.create_goods(req)
-        return SuccessResponse.create(data=goods, message="创建商品成功")
-    except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="创建商品失败")
+# @router.post("/", response_model=SuccessResponse[GoodsInfo], summary="创建商品")
+# async def create_goods(
+#     req: GoodsCreate,
+#     db: AsyncSession = Depends(get_async_db),
+# ):
+#     """创建商品"""
+#     try:
+#         service = GoodsAsyncService(db)
+#         goods = await service.create_goods(req)
+#         return SuccessResponse.create(data=goods, message="创建商品成功")
+#     except BusinessException as e:
+#         raise HTTPException(status_code=400, detail=e.message)
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail="创建商品失败")
 
 
-@router.put("/{goods_id}", response_model=SuccessResponse[GoodsInfo], summary="更新商品")
-async def update_goods(
-    goods_id: int,
-    req: GoodsUpdate,
-    db: AsyncSession = Depends(get_async_db),
-):
-    """更新商品"""
-    try:
-        service = GoodsAsyncService(db)
-        goods = await service.update_goods(goods_id, req)
-        return SuccessResponse.create(data=goods, message="更新商品成功")
-    except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="更新商品失败")
+# @router.put("/{goods_id}", response_model=SuccessResponse[GoodsInfo], summary="更新商品")
+# async def update_goods(
+#     goods_id: int,
+#     req: GoodsUpdate,
+#     db: AsyncSession = Depends(get_async_db),
+# ):
+#     """更新商品"""
+#     try:
+#         service = GoodsAsyncService(db)
+#         goods = await service.update_goods(goods_id, req)
+#         return SuccessResponse.create(data=goods, message="更新商品成功")
+#     except BusinessException as e:
+#         raise HTTPException(status_code=400, detail=e.message)
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail="更新商品失败")
 
 
-@router.delete("/{goods_id}", response_model=SuccessResponse[dict], summary="删除商品")
-async def delete_goods(
-    goods_id: int,
-    db: AsyncSession = Depends(get_async_db),
-):
-    """删除商品"""
-    try:
-        service = GoodsAsyncService(db)
-        await service.delete_goods(goods_id)
-        return SuccessResponse.create(data={}, message="删除商品成功")
-    except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="删除商品失败")
+# @router.delete("/{goods_id}", response_model=SuccessResponse[dict], summary="删除商品")
+# async def delete_goods(
+#     goods_id: int,
+#     db: AsyncSession = Depends(get_async_db),
+# ):
+#     """删除商品"""
+#     try:
+#         service = GoodsAsyncService(db)
+#         await service.delete_goods(goods_id)
+#         return SuccessResponse.create(data={}, message="删除商品成功")
+#     except BusinessException as e:
+#         raise HTTPException(status_code=400, detail=e.message)
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail="删除商品失败")
 
 
 @router.get("/{goods_id}", response_model=SuccessResponse[GoodsInfo], summary="获取商品详情")

@@ -2,7 +2,7 @@
 FastAPI依赖项（微服务版本）
 从网关传递的请求头获取用户信息
 """
-from typing import Optional
+from typing import Optional, List
 from fastapi import HTTPException, Header, Depends, Query
 from pydantic import BaseModel, Field
 
@@ -14,13 +14,13 @@ class UserContext(BaseModel):
     """用户上下文信息"""
     user_id: int = Field(..., description="当前登录用户ID")
     username: str = Field(..., description="当前登录用户名")
-    role: str = Field(default="user", description="用户角色：user/admin/super_admin 等")
+    roles: List[str] = Field(default=["user"], description="用户角色列表")
 
 
 async def get_current_user_context(
     header_user_id: Optional[str] = Header(None, alias=settings.user_id_header),
     username: Optional[str] = Header(None, alias=settings.username_header),
-    user_role: Optional[str] = Header(None, alias=settings.user_role_header)
+    user_roles_str: Optional[str] = Header(None, alias=settings.user_role_header)
 ) -> UserContext:
     """获取当前用户上下文信息"""
     if not header_user_id:
@@ -37,10 +37,13 @@ async def get_current_user_context(
             detail="用户ID格式错误"
         )
     
+    # 解析角色字符串
+    roles = [role.strip() for role in user_roles_str.split(',')] if user_roles_str else ["user"]
+    
     return UserContext(
         user_id=user_id_int,
         username=username or f"user_{header_user_id}",
-        role=user_role or "user"
+        roles=roles
     )
 
 
@@ -54,7 +57,7 @@ async def get_current_user_id(
 async def get_optional_user_context(
     header_user_id: Optional[str] = Header(None, alias=settings.user_id_header),
     username: Optional[str] = Header(None, alias=settings.username_header),
-    user_role: Optional[str] = Header(None, alias=settings.user_role_header)
+    user_roles_str: Optional[str] = Header(None, alias=settings.user_role_header)
 ) -> Optional[UserContext]:
     """获取可选的用户上下文（用于可选登录的接口）"""
     if not header_user_id:
@@ -62,10 +65,11 @@ async def get_optional_user_context(
     
     try:
         user_id_int = int(header_user_id)
+        roles = [role.strip() for role in user_roles_str.split(',')] if user_roles_str else ["user"]
         return UserContext(
             user_id=user_id_int,
             username=username or f"user_{header_user_id}",
-            role=user_role or "user"
+            roles=roles
         )
     except ValueError:
         return None
@@ -82,10 +86,22 @@ async def require_admin(
     user_context: UserContext = Depends(get_current_user_context)
 ) -> UserContext:
     """要求管理员权限"""
-    if user_context.role not in ["admin", "super_admin"]:
+    if not any(role in user_context.roles for role in ["admin", "super_admin"]):
         raise HTTPException(
             status_code=403,
             detail="需要管理员权限"
+        )
+    return user_context
+
+
+async def require_blogger_role(
+    user_context: UserContext = Depends(get_current_user_context)
+) -> UserContext:
+    """要求Blogger角色权限"""
+    if "blogger" not in user_context.roles:
+        raise HTTPException(
+            status_code=403,
+            detail="需要博主权限"
         )
     return user_context
 
