@@ -103,6 +103,13 @@ class ContentQueryService:
         stmt = select(Content)
         if conditions:
             stmt = stmt.where(and_(*conditions))
+        
+        from sqlalchemy import case
+        average_score = case(
+            (Content.score_count > 0, Content.score_total / Content.score_count),
+            else_=0.0
+        ).label("average_score")
+
         order_map = {
             "create_time": Content.create_time,
             "update_time": Content.update_time,
@@ -111,7 +118,7 @@ class ContentQueryService:
             "like_count": Content.like_count,
             "favorite_count": Content.favorite_count,
             "comment_count": Content.comment_count,
-            "score": Content.score,
+            "score": average_score,
         }
         order_by = order_map.get(query_params.sort_by or "create_time", Content.create_time)
         stmt = stmt.order_by(order_by.asc() if query_params.sort_order == "asc" else order_by.desc())
