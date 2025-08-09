@@ -4,10 +4,12 @@
 from typing import Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.atomic import atomic_transaction
 from app.domains.favorite.schemas import FavoriteToggleRequest, FavoriteInfo, FavoriteQuery
 from app.common.pagination import PaginationParams, PaginationResult
 from app.domains.favorite.services.toggle_service import FavoriteToggleService
 from app.domains.favorite.services.query_service import FavoriteQueryService
+from app.common.exceptions import BusinessException
 
 
 class FavoriteAsyncService:
