@@ -1,9 +1,10 @@
 """
 关注模块异步服务层（门面）
 """
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.atomic import atomic_transaction
 from app.domains.follow.schemas import FollowToggleRequest, FollowInfo, FollowQuery, FollowStatus, FollowStats
 from app.common.pagination import PaginationParams, PaginationResult
 from app.domains.follow.services.toggle_service import FollowToggleService
