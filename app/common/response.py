@@ -25,7 +25,7 @@
      "message": "获取成功",
      "success": true,
      "data": {
-       "datas": [...],
+       "list": [...],
        "total": 100,
        "currentPage": 1,
        "pageSize": 20,
@@ -59,11 +59,11 @@ class SuccessResponse(BaseResponse[T]):
     }
     """
     code: int = 200
-    message: str = "success"
+    message: str = "操作成功"
     success: bool = True
     
     @classmethod
-    def create(cls, data: T = None, message: str = "success") -> "SuccessResponse[T]":
+    def create(cls, data: T = None, message: str = "操作成功") -> "SuccessResponse[T]":
         """创建成功响应"""
         return cls(data=data, message=message)
 
@@ -90,7 +90,7 @@ class ErrorResponse(BaseResponse[None]):
 
 class PaginationData(BaseModel, Generic[T]):
     """分页数据模型"""
-    datas: List[T] = Field(description="分页数据列表")
+    list: List[T] = Field(description="分页数据列表")
     total: int = Field(description="总记录数")
     current_page: int = Field(alias="currentPage", description="当前页码")
     page_size: int = Field(alias="pageSize", description="每页大小")
@@ -108,7 +108,7 @@ class PaginationResponse(BaseResponse[PaginationData[T]], Generic[T]):
       "code": "200",
       "message": "操作成功",
       "data": {
-        "datas": {},
+        "list": {},
         "total": 100,
         "currentPage": 1,
         "pageSize": 20,
@@ -128,7 +128,7 @@ class PaginationResponse(BaseResponse[PaginationData[T]], Generic[T]):
     ) -> "PaginationResponse[T]":
         """从通用分页结果构造统一分页响应"""
         pagination_data = PaginationData[T](
-            datas=result.items,
+            list=result.items,
             total=result.total,
             current_page=result.page,
             page_size=result.page_size,
@@ -149,7 +149,7 @@ class PaginationResponse(BaseResponse[PaginationData[T]], Generic[T]):
         total_page = (total + page_size - 1) // page_size if total > 0 else 0
         
         pagination_data = PaginationData[T](
-            datas=datas,
+            list=datas,
             total=total,
             current_page=current_page,
             page_size=page_size,

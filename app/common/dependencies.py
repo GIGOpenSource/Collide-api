@@ -4,7 +4,7 @@ FastAPI依赖项（微服务版本）
 """
 from typing import Optional
 from fastapi import HTTPException, Header, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.common.config import settings
 from app.common.pagination import PaginationParams
@@ -12,9 +12,9 @@ from app.common.pagination import PaginationParams
 
 class UserContext(BaseModel):
     """用户上下文信息"""
-    user_id: int
-    username: str
-    role: str = "user"
+    user_id: int = Field(..., description="当前登录用户ID")
+    username: str = Field(..., description="当前登录用户名")
+    role: str = Field(default="user", description="用户角色：user/admin/super_admin 等")
 
 
 async def get_current_user_context(
@@ -92,24 +92,24 @@ async def require_admin(
 
 async def get_pagination(
     # 页码别名
-    page: Optional[int] = Query(None, ge=1, description="页码"),
-    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
-    curret_page: Optional[int] = Query(None, alias="curretPage", ge=1, description="页码(别名: curretPage)"),
-    current: Optional[int] = Query(None, alias="current", ge=1, description="页码(别名: current)"),
-    page_num: Optional[int] = Query(None, alias="pageNum", ge=1, description="页码(别名: pageNum)"),
+    page: Optional[int] = Query(None, ge=1, description="页码（不推荐，推荐使用 curretPage）", deprecated=True),
+    current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名: currentPage)（不推荐，推荐使用 curretPage）", deprecated=True),
+    curret_page: Optional[int] = Query(None, alias="curretPage", ge=1, description="页码（推荐）", examples={"示例": {"summary": "第2页", "value": 2}}),
+    current: Optional[int] = Query(None, alias="current", ge=1, description="页码(别名: current)（不推荐，推荐使用 curretPage）", deprecated=True),
+    page_num: Optional[int] = Query(None, alias="pageNum", ge=1, description="页码(别名: pageNum)（不推荐，推荐使用 curretPage）", deprecated=True),
     # 偏移量（常见于 offset/limit 风格）
-    offset: Optional[int] = Query(None, alias="offset", ge=0, description="偏移量(从0开始)"),
+    offset: Optional[int] = Query(None, alias="offset", ge=0, description="偏移量(从0开始)（兼容参数，推荐使用 curretPage/pageSize）", deprecated=True),
     # 每页大小别名
-    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
-    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名: pageSize)"),
-    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
-    per_page: Optional[int] = Query(None, alias="per_page", ge=1, le=100, description="每页数量(别名: per_page)")
+    size: Optional[int] = Query(None, ge=1, le=100, description="每页数量（不推荐，推荐使用 pageSize）", deprecated=True),
+    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量（推荐）", examples={"示例": {"summary": "每页20条", "value": 20}}),
+    limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名: limit)（不推荐，推荐使用 pageSize）", deprecated=True),
+    per_page: Optional[int] = Query(None, alias="per_page", ge=1, le=100, description="每页数量(别名: per_page)（不推荐，推荐使用 pageSize）", deprecated=True)
 ) -> PaginationParams:
     """统一分页依赖：兼容多种前端命名，返回 PaginationParams
 
-    支持两种风格：
-    - 页码风格：curretPage/currentPage/page/pageNum/current + pageSize/size/limit/per_page
-    - 偏移风格：offset + limit/size/pageSize/per_page
+    支持两种风格（推荐优先使用前者）：
+    - 页码风格（推荐）：curretPage + pageSize
+    - 兼容风格：currentPage/page/pageNum/current + pageSize/size/limit/per_page，或 offset + limit
     """
     # 优先前端标准参数 pageSize，其次兼容 size/limit/per_page
     effective_page_size = page_size or size or limit or per_page or 20

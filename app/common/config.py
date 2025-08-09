@@ -1,6 +1,6 @@
 """
 应用配置模块
-从.env文件动态加载配置
+仅使用 .env 文件动态加载配置
 """
 import os
 from typing import Optional
@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """应用配置类 - 所有配置都从.env文件获取"""
+    """应用配置类 - 所有配置都从 .env 文件获取"""
     
     # 应用基础配置
     app_name: str
@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     service_tags: Optional[str] = None
     
     model_config = {
-        "env_file": [".env", "config.docker.env"],
+        "env_file": ".env",
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
         "extra": "ignore"  # 忽略.env中未定义的额外字段
@@ -70,29 +70,21 @@ class Settings(BaseSettings):
 
 
 def load_settings() -> Settings:
-    """加载配置，支持多个配置文件"""
-    env_files = [".env", "config.docker.env"]
-    found_files = []
+    """仅从 .env 加载配置"""
+    env_file_path = ".env"
     
-    for env_file in env_files:
-        if os.path.exists(env_file):
-            found_files.append(env_file)
+    if not os.path.exists(env_file_path):
+        print("⚠️  .env 配置文件不存在")
+        print("请在项目根目录创建 .env 文件，可以参考 config.docker.env")
+        raise FileNotFoundError(".env 配置文件不存在")
     
-    if not found_files:
-        print("⚠️  配置文件不存在")
-        print("请创建以下配置文件之一：")
-        for env_file in env_files:
-            print(f"   - {env_file}")
-        print("或者根据 config.docker.env 创建 .env 文件")
-        raise FileNotFoundError("配置文件不存在")
-    
-    print(f"✅ 找到配置文件: {', '.join(found_files)}")
+    print(f"✅ 使用配置文件: {env_file_path}")
     
     try:
         return Settings()
     except Exception as e:
         print(f"❌ 加载配置文件失败: {e}")
-        print("请检查配置文件格式是否正确")
+        print("请检查 .env 文件格式是否正确")
         raise
 
 

@@ -9,6 +9,7 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.common.config import settings
@@ -36,6 +37,8 @@ from app.domains.ads.async_router import router as ads_router
 from app.domains.message.async_router import router as message_router
 from app.domains.task.async_router import router as task_router
 from app.domains.goods.async_router import router as goods_router
+from app.domains.order.async_router import router as order_router
+from app.domains.payment.async_router import router as payment_router
 from app.domains.category.async_router import router as category_router
 
 # 配置日志
@@ -116,15 +119,112 @@ def signal_handler(signum, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-# 创建FastAPI应用实例
+# OpenAPI Tags 元数据（中文说明）
+tags_metadata = [
+    {"name": "系统", "description": "系统级接口：健康检查、服务信息等"},
+    {"name": "用户管理", "description": "用户信息、认证辅助、钱包与黑名单等用户相关接口"},
+    {"name": "内容管理", "description": "内容的创建、更新、发布、查询与统计"},
+    {"name": "分类管理", "description": "分类的增删改查与筛选"},
+    {"name": "社交动态", "description": "动态流、互动相关接口"},
+    {"name": "评论管理", "description": "评论的增删改查、树状结构与回复"},
+    {"name": "点赞/关注/收藏", "description": "常见互动行为"},
+    {"name": "搜索", "description": "关键词搜索与热搜/历史"},
+    {"name": "广告管理", "description": "广告的管理与投放"},
+    {"name": "消息中心", "description": "消息与通知相关"},
+    {"name": "任务系统", "description": "任务与调度相关"},
+    {"name": "商品管理", "description": "商品、价格、热销等"},
+]
+
+# 创建FastAPI应用实例（中文文档说明包含分页规范）
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Collide 业务服务 - 用户与内容管理微服务架构",
+    description=(
+        "Collide 业务服务 - 用户与内容管理微服务架构\n\n"
+        "文档与字段说明：\n"
+        "- 所有接口均返回统一响应结构，错误时包含明确的 code 与 message。\n"
+        "- 分页参数（推荐）：curretPage 与 pageSize。\n"
+        "  - 示例：?curretPage=2&pageSize=20\n"
+        "  - 默认：curretPage=1，pageSize=20；pageSize 最大为 100。\n"
+        "- 兼容参数（不推荐，仅为兼容旧前端）：currentPage/page/pageNum/current 或 offset + limit。\n"
+        "- 分页响应字段：datas、total、currentPage、pageSize、totalPage。\n"
+    ),
+    terms_of_service="https://example.com/terms",
+    contact={
+        "name": "Collide 团队",
+        "url": "https://example.com",
+        "email": "support@example.com",
+    },
+    license_info={
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+    },
+    servers=[
+        {"url": "/", "description": "默认环境"},
+    ],
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
-    lifespan=lifespan
+    openapi_tags=tags_metadata,
+    lifespan=lifespan,
 )
+
+
+def custom_openapi():
+    """自定义 OpenAPI，增强中文文档信息与展示细节"""
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+
+    # 附加中文友好的元信息
+    info = openapi_schema.get("info", {})
+    info.setdefault("x-logo", {"url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"})
+    info.setdefault("x-summary", "本服务提供用户、内容、标签、消息、任务、商品等领域接口，支持统一响应与分页规范。")
+    openapi_schema["info"] = info
+
+    # 为常见响应模型补充示例（如果存在）
+    components = openapi_schema.setdefault("components", {})
+    schemas = components.setdefault("schemas", {})
+
+    # 可能的模型名称（根据 Pydantic 泛型展开的可能性，尽力匹配基础模型名）
+    if "BaseResponse" in schemas and "properties" in schemas["BaseResponse"]:
+        schemas["BaseResponse"].setdefault("example", {
+            "code": 200,
+            "message": "操作成功",
+            "success": True,
+            "data": None
+        })
+
+    if "ErrorResponse" in schemas and "properties" in schemas["ErrorResponse"]:
+        schemas["ErrorResponse"].setdefault("example", {
+            "code": 400,
+            "message": "参数错误",
+            "success": False,
+            "data": None
+        })
+
+    if "PaginationData" in schemas and "properties" in schemas["PaginationData"]:
+        schemas["PaginationData"].setdefault("example", {
+            "datas": [
+                {"id": 1, "name": "示例"}
+            ],
+            "total": 100,
+            "currentPage": 1,
+            "pageSize": 20,
+            "totalPage": 5
+        })
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+# 挂载自定义 OpenAPI 生成函数
+app.openapi = custom_openapi  # type: ignore
 
 # 配置CORS中间件
 app.add_middleware(
@@ -156,6 +256,8 @@ app.include_router(ads_router)
 app.include_router(message_router)
 app.include_router(task_router)
 app.include_router(goods_router)
+app.include_router(order_router)
+app.include_router(payment_router)
 
 # 健康检查接口
 @app.get("/health", tags=["系统"], summary="健康检查")
