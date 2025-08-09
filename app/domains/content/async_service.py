@@ -5,6 +5,7 @@
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.atomic import atomic_transaction
 from app.domains.content.schemas import (
     ContentCreate, ContentUpdate, ContentInfo, ContentQueryParams,
     ChapterCreate, ChapterUpdate, ChapterInfo, ChapterListItem,
