@@ -327,10 +327,10 @@ async def get_content_list(
         result = await service.get_content_list(query_params, pagination, current_user_id=current_user.user_id if current_user else None)
         return PaginationResponse.from_pagination_result(result, "获取成功")
     except BusinessException as e:
-        return handle_business_error(e.message, e.code)
+        raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
         logger.error(f"获取内容列表失败: {str(e)}")
-        return handle_system_error("获取内容列表失败，请稍后重试")
+        raise HTTPException(status_code=500, detail="获取内容列表失败，请稍后重试")
 
 
 @router.post("/{content_id}/stats", response_model=SuccessResponse[bool], summary="更新内容统计", description="按类型增长浏览/点赞/评论/分享/收藏等统计")
@@ -729,10 +729,10 @@ async def get_my_contents(
         result = await service.get_content_list(query_params, pagination, current_user_id=current_user.user_id)
         return PaginationResponse.from_pagination_result(result, "获取成功")
     except BusinessException as e:
-        return handle_business_error(e.message, e.code)
+        raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
         logger.error(f"获取我的内容列表失败: {str(e)}")
-        return handle_system_error("获取我的内容列表失败，请稍后重试")
+        raise HTTPException(status_code=500, detail="获取我的内容列表失败，请稍后重试")
 
 
 # ================ 内容统计接口 ================
@@ -807,10 +807,10 @@ async def get_hot_contents(
         result = await service.get_content_list(query_params, pagination)
         return PaginationResponse.from_pagination_result(result, f"获取{days}天内热门内容成功")
     except BusinessException as e:
-        return handle_business_error(e.message, e.code)
+        raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
         logger.error(f"获取热门内容失败: {str(e)}")
-        return handle_system_error("获取热门内容失败，请稍后重试")
+        raise HTTPException(status_code=500, detail="获取热门内容失败，请稍后重试")
 
 
 @router.get("/latest", response_model=PaginationResponse[ContentInfo])
@@ -834,10 +834,10 @@ async def get_latest_contents(
         result = await service.get_content_list(query_params, pagination)
         return PaginationResponse.from_pagination_result(result, "获取最新内容成功")
     except BusinessException as e:
-        return handle_business_error(e.message, e.code)
+        raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
         logger.error(f"获取最新内容失败: {str(e)}")
-        return handle_system_error("获取最新内容失败，请稍后重试")
+        raise HTTPException(status_code=500, detail="获取最新内容失败，请稍后重试")
 
 
 @router.get("/recommended", response_model=PaginationResponse[ContentInfo])
@@ -862,10 +862,10 @@ async def get_recommended_contents(
         result = await service.get_content_list(query_params, pagination)
         return PaginationResponse.from_pagination_result(result, "获取推荐内容成功")
     except BusinessException as e:
-        return handle_business_error(e.message, e.code)
+        raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
         logger.error(f"获取推荐内容失败: {str(e)}")
-        return handle_system_error("获取推荐内容失败，请稍后重试")
+        raise HTTPException(status_code=500, detail="获取推荐内容失败，请稍后重试")
 
 
 @router.get("/trending", response_model=PaginationResponse[ContentInfo])
@@ -890,10 +890,10 @@ async def get_trending_contents(
         result = await service.get_content_list(query_params, pagination)
         return PaginationResponse.from_pagination_result(result, "获取趋势内容成功")
     except BusinessException as e:
-        return handle_business_error(e.message, e.code)
+        raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
         logger.error(f"获取趋势内容失败: {str(e)}")
-        return handle_system_error("获取趋势内容失败，请稍后重试")
+        raise HTTPException(status_code=500, detail="获取趋势内容失败，请稍后重试")
 
 
 @router.get("/search", response_model=PaginationResponse[ContentInfo], summary="搜索内容", description="全文搜索内容，支持标题、描述、标签、作者搜索")
@@ -943,10 +943,10 @@ async def search_contents(
         result = await service.get_content_list(query_params, pagination)
         return PaginationResponse.from_pagination_result(result, f"搜索'{q}'的结果")
     except BusinessException as e:
-        return handle_business_error(e.message, e.code)
+        raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
         logger.error(f"搜索内容失败: {str(e)}")
-        return handle_system_error("搜索内容失败，请稍后重试")
+        raise HTTPException(status_code=500, detail="搜索内容失败，请稍后重试")
 
 
 @router.get("/by-category-name", response_model=PaginationResponse[ContentInfo], summary="按分类名称查询内容", description="根据分类名称（精确/模糊）聚合查询内容列表")
@@ -978,7 +978,7 @@ async def get_contents_by_category_name(
         result = await service.get_content_list_by_category_name(category_name, match, query_params, pagination)
         return PaginationResponse.from_pagination_result(result, "获取成功")
     except BusinessException as e:
-        return handle_business_error(e.message, e.code)
+        raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
         logger.error(f"按分类名称查询内容失败: {str(e)}")
-        return handle_system_error("按分类名称查询内容失败，请稍后重试")
+        raise HTTPException(status_code=500, detail="按分类名称查询内容失败，请稍后重试")
