@@ -41,8 +41,8 @@ class ContentAsyncService:
     async def delete_content(self, content_id: int, user_id: int) -> bool:
         return await ContentUpdateService(self.db).delete_content(content_id, user_id)
 
-    async def get_content_list(self, query_params: ContentQueryParams, pagination: PaginationParams) -> PaginationResult[ContentInfo]:
-        return await ContentQueryService(self.db).get_content_list(query_params, pagination)
+    async def get_content_list(self, query_params: ContentQueryParams, pagination: PaginationParams, current_user_id: Optional[int] = None) -> PaginationResult[ContentInfo]:
+        return await ContentQueryService(self.db).get_content_list(query_params, pagination, current_user_id)
 
     async def increment_content_stats(self, content_id: int, stat_type: str, increment_value: int = 1) -> bool:
         return await ContentStatsService(self.db).increment_content_stats(content_id, stat_type, increment_value)
