@@ -5,9 +5,13 @@ FastAPI依赖项（微服务版本）
 from typing import Optional, List
 from fastapi import HTTPException, Header, Depends, Query
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.common.config import settings
 from app.common.pagination import PaginationParams
+from app.database.connection import get_async_db
+from app.domains.users.models import UserRole, Role
 
 
 class UserContext(BaseModel):
@@ -17,12 +21,24 @@ class UserContext(BaseModel):
     roles: List[str] = Field(default=["user"], description="用户角色列表")
 
 
+async def get_roles_for_user(user_id: int, db: AsyncSession) -> List[str]:
+    """根据用户ID从数据库查询角色列表"""
+    stmt = (
+        select(Role.name)
+        .join(UserRole, Role.id == UserRole.role_id)
+        .where(UserRole.user_id == user_id)
+    )
+    result = await db.execute(stmt)
+    roles = [row[0] for row in result.all()]
+    return roles if roles else ["user"]
+
+
 async def get_current_user_context(
     header_user_id: Optional[str] = Header(None, alias=settings.user_id_header),
     username: Optional[str] = Header(None, alias=settings.username_header),
-    user_roles_str: Optional[str] = Header(None, alias=settings.user_role_header)
+    db: AsyncSession = Depends(get_async_db)
 ) -> UserContext:
-    """获取当前用户上下文信息"""
+    """获取当前用户上下文信息（角色从数据库读取）"""
     if not header_user_id:
         raise HTTPException(
             status_code=401, 
@@ -37,8 +53,7 @@ async def get_current_user_context(
             detail="用户ID格式错误"
         )
     
-    # 解析角色字符串
-    roles = [role.strip() for role in user_roles_str.split(',')] if user_roles_str else ["user"]
+    roles = await get_roles_for_user(user_id_int, db)
     
     return UserContext(
         user_id=user_id_int,
@@ -57,15 +72,15 @@ async def get_current_user_id(
 async def get_optional_user_context(
     header_user_id: Optional[str] = Header(None, alias=settings.user_id_header),
     username: Optional[str] = Header(None, alias=settings.username_header),
-    user_roles_str: Optional[str] = Header(None, alias=settings.user_role_header)
+    db: AsyncSession = Depends(get_async_db)
 ) -> Optional[UserContext]:
-    """获取可选的用户上下文（用于可选登录的接口）"""
+    """获取可选的用户上下文（角色从数据库读取）"""
     if not header_user_id:
         return None
     
     try:
         user_id_int = int(header_user_id)
-        roles = [role.strip() for role in user_roles_str.split(',')] if user_roles_str else ["user"]
+        roles = await get_roles_for_user(user_id_int, db)
         return UserContext(
             user_id=user_id_int,
             username=username or f"user_{header_user_id}",

@@ -2,7 +2,7 @@
 用户相关的Pydantic模型
 定义请求体、响应体、DTO等
 """
-from typing import Optional, Union
+from typing import Optional, Union, List
 from datetime import datetime, date
 from decimal import Decimal
 from pydantic import BaseModel, Field, EmailStr, validator, model_validator, field_validator
@@ -80,6 +80,11 @@ class UserQuery(BaseModel):
     email: Optional[str] = Field(None, description="邮箱")
     nickname: Optional[str] = Field(None, description="昵称")
     status: Optional[str] = Field(None, description="用户状态")
+    role: Optional[str] = Field(None, description="用户角色（分表）")
+    follower_count_min: Optional[int] = Field(None, ge=0, description="最小粉丝数")
+    follower_count_max: Optional[int] = Field(None, ge=0, description="最大粉丝数")
+    like_count_min: Optional[int] = Field(None, ge=0, description="最小获赞数")
+    like_count_max: Optional[int] = Field(None, ge=0, description="最大获赞数")
 
 
 class UserCreateRequest(BaseModel):
@@ -160,7 +165,7 @@ class UserInfo(BaseModel):
     avatar: Optional[str] = Field(description="头像URL")
     email: Optional[str] = Field(description="邮箱")
     phone: Optional[str] = Field(description="手机号")
-    role: str = Field(description="用户角色")
+    roles: List[str] = Field(default_factory=list, description="用户角色列表")
     status: str = Field(description="用户状态")
     bio: Optional[str] = Field(description="个人简介")
     birthday: Optional[date] = Field(description="生日")

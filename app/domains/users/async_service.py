@@ -26,7 +26,7 @@ from app.domains.users.services.query_service import UserQueryService
 from app.domains.users.services.profile_service import UserProfileService
 from app.domains.users.services.auth_service import UserAuthService
 from app.domains.users.services.wallet_service import UserWalletService
-from app.domains.users.models import User, UserBlock
+from app.domains.users.models import User, UserBlock, Role, UserRole
 
 
 class UserAsyncService:
@@ -84,18 +84,45 @@ class UserAsyncService:
             phone=req.phone,
             nickname=req.nickname,
             password_hash=hashed_password,
-            role=req.role or "user",
             status="active"
         )
         
         self.db.add(user)
+        await self.db.flush() # 使用 flush 来获取新 user 的 ID
+
+        # 2. 查找目标角色（默认 user）
+        target_role_name = getattr(req, "role", None) or 'user'
+        role_stmt = select(Role).where(Role.name == target_role_name)
+        user_role = (await self.db.execute(role_stmt)).scalar_one_or_none()
+        if not user_role:
+            # 角色不存在则创建之
+            descriptions = {
+                'user': '普通用户',
+                'blogger': '博主/内容创作者',
+                'admin': '管理员',
+                'vip': '会员用户',
+            }
+            user_role = Role(name=target_role_name, description=descriptions.get(target_role_name, '系统角色'))
+            self.db.add(user_role)
+            await self.db.flush()
+
+        # 3. 在 t_user_role 中创建关联
+        user_role_link = UserRole(user_id=user.id, role_id=user_role.id)
+        self.db.add(user_role_link)
+
         await self.db.commit()
         await self.db.refresh(user)
 
         # 清除相关缓存
         await cache_service.delete_pattern("user:*")
         
-        return UserInfo.model_validate(user)
+        # 附带角色列表
+        roles_stmt = select(Role.name).join(UserRole, Role.id == UserRole.role_id).where(UserRole.user_id == user.id)
+        roles_result = await self.db.execute(roles_stmt)
+        roles = [row[0] for row in roles_result.all()] or ["user"]
+        user_dict = UserInfo.model_validate(user).model_dump()
+        user_dict["roles"] = roles
+        return UserInfo(**user_dict)
 
     async def get_user_by_id(self, user_id: int) -> UserInfo:
         return await UserQueryService(self.db).get_user_by_id(user_id)
@@ -271,7 +298,13 @@ class UserAsyncService:
         # 清除相关缓存
         await cache_service.delete_user_cache(user_id)
         
-        return UserInfo.model_validate(user)
+        # 返回带角色信息
+        roles_stmt = select(Role.name).join(UserRole, Role.id == UserRole.role_id).where(UserRole.user_id == user.id)
+        roles_result = await self.db.execute(roles_stmt)
+        roles = [row[0] for row in roles_result.all()] or ["user"]
+        user_dict = UserInfo.model_validate(user).model_dump()
+        user_dict["roles"] = roles
+        return UserInfo(**user_dict)
 
     async def get_user_by_login_identifier(self, request):
         """根据登录标识符查找用户"""
@@ -291,8 +324,13 @@ class UserAsyncService:
         )).scalar_one_or_none()
         
         if user:
+            roles_stmt = select(Role.name).join(UserRole, Role.id == UserRole.role_id).where(UserRole.user_id == user.id)
+            roles_result = await self.db.execute(roles_stmt)
+            roles = [row[0] for row in roles_result.all()] or ["user"]
+            user_dict = UserInfo.model_validate(user).model_dump()
+            user_dict["roles"] = roles
             return UserByIdentifierResponse(
-                user_info=UserInfo.model_validate(user),
+                user_info=UserInfo(**user_dict),
                 exists=True
             )
         else:

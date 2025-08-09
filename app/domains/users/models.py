@@ -25,7 +25,7 @@ class User(Base):
     bio = Column(Text, comment='个人简介')
     location = Column(String(100), comment='所在地')
     status = Column(String(20), nullable=False, default='active', comment='状态：active、inactive、suspended')
-    role = Column(String(20), nullable=False, default='user', comment='角色：user、blogger、admin、vip')
+    # role = Column(String(20), nullable=False, default='user', comment='角色：user、blogger、admin、vip')
     
     # 统计字段
     follower_count = Column(BigInteger, nullable=False, default=0, comment='粉丝数')
@@ -48,6 +48,27 @@ class User(Base):
     create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment='创建时间')
     update_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(),
                         onupdate=func.current_timestamp(), comment='更新时间')
+
+
+class Role(Base):
+    """角色表"""
+    __tablename__ = 't_role'
+
+    id = Column(Integer, primary_key=True, autoincrement=True, comment='角色ID')
+    name = Column(String(50), unique=True, nullable=False, comment='角色名称')
+    description = Column(String(200), comment='角色描述')
+    create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment='创建时间')
+    update_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), onupdate=func.current_timestamp(), comment='更新时间')
+
+
+class UserRole(Base):
+    """用户角色关联表"""
+    __tablename__ = 't_user_role'
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment='主键ID')
+    user_id = Column(BigInteger, nullable=False, comment='用户ID')
+    role_id = Column(Integer, nullable=False, comment='角色ID')
+    create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment='创建时间')
 
 
 class UserWallet(Base):
