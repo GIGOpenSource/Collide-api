@@ -58,7 +58,7 @@ class ContentChapter(Base):
     content_id = Column(BigInteger, nullable=False, comment='内容ID')
     chapter_num = Column(Integer, nullable=False, comment='章节号')
     title = Column(String(200), nullable=False, comment='章节标题')
-    content = Column(Text, comment='章节内容')
+    content = Column(Text, comment='章节内容')  # SQL中是LONGTEXT，但SQLAlchemy中Text已经足够
     word_count = Column(Integer, nullable=False, default=0, comment='字数')
     status = Column(String(20), nullable=False, default='DRAFT', comment='状态：DRAFT、PUBLISHED')
     create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment='创建时间')

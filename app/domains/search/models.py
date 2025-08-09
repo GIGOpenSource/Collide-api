@@ -2,7 +2,8 @@
 搜索模块数据库模型
 与 sql/search-simple.sql 保持一致
 """
-from sqlalchemy import Column, BigInteger, String, DateTime, Integer, DECIMAL
+from sqlalchemy import Column, BigInteger, String, DateTime, Integer
+from sqlalchemy.types import DECIMAL
 from sqlalchemy.sql import func
 
 from app.database.connection import Base

@@ -94,15 +94,35 @@ async def get_pagination(
     # 页码别名
     page: Optional[int] = Query(None, ge=1, description="页码"),
     current_page: Optional[int] = Query(None, alias="currentPage", ge=1, description="页码(别名)"),
+    curret_page: Optional[int] = Query(None, alias="curretPage", ge=1, description="页码(别名: curretPage)"),
     current: Optional[int] = Query(None, alias="current", ge=1, description="页码(别名: current)"),
     page_num: Optional[int] = Query(None, alias="pageNum", ge=1, description="页码(别名: pageNum)"),
+    # 偏移量（常见于 offset/limit 风格）
+    offset: Optional[int] = Query(None, alias="offset", ge=0, description="偏移量(从0开始)"),
     # 每页大小别名
     size: Optional[int] = Query(None, ge=1, le=100, description="每页数量"),
-    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名)"),
+    page_size: Optional[int] = Query(None, alias="pageSize", ge=1, le=100, description="每页数量(别名: pageSize)"),
     limit: Optional[int] = Query(None, alias="limit", ge=1, le=100, description="每页数量(别名)"),
     per_page: Optional[int] = Query(None, alias="per_page", ge=1, le=100, description="每页数量(别名: per_page)")
 ) -> PaginationParams:
-    """统一分页依赖：兼容多种前端命名，返回 PaginationParams"""
-    effective_page = page or current_page or current or page_num or 1
-    effective_page_size = size or page_size or limit or per_page or 20
+    """统一分页依赖：兼容多种前端命名，返回 PaginationParams
+
+    支持两种风格：
+    - 页码风格：curretPage/currentPage/page/pageNum/current + pageSize/size/limit/per_page
+    - 偏移风格：offset + limit/size/pageSize/per_page
+    """
+    # 优先前端标准参数 pageSize，其次兼容 size/limit/per_page
+    effective_page_size = page_size or size or limit or per_page or 20
+
+    # 优先使用页码类参数
+    if (curret_page is not None) or (current_page is not None) or (page is not None) or (page_num is not None) or (current is not None):
+        # 优先前端标准参数 curretPage，其次兼容 currentPage/page/pageNum/current
+        effective_page = curret_page or current_page or page or page_num or current or 1
+    else:
+        # 兼容 offset/limit 风格：用 offset 推导 page
+        if offset is not None:
+            effective_page = (offset // effective_page_size) + 1
+        else:
+            effective_page = 1
+
     return PaginationParams(page=effective_page, page_size=effective_page_size)

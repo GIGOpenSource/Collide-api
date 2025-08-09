@@ -2,6 +2,7 @@
 用户模块数据库模型
 """
 from sqlalchemy import Column, BigInteger, String, DateTime, SmallInteger, Integer
+from sqlalchemy import Date, Text
 from sqlalchemy.sql import func
 from sqlalchemy.types import DECIMAL
 
@@ -17,11 +18,11 @@ class User(Base):
     email = Column(String(100), unique=True, nullable=True, comment='邮箱')
     phone = Column(String(20), unique=True, nullable=True, comment='手机号')
     password_hash = Column(String(255), nullable=False, comment='密码哈希')
-    nickname = Column(String(50), comment='昵称')
+    nickname = Column(String(100), nullable=False, comment='昵称')
     avatar = Column(String(500), comment='头像URL')
-    gender = Column(String(20), default='unknown', comment='性别：male、female、unknown')
-    birthday = Column(DateTime, comment='生日')
-    bio = Column(String(500), comment='个人简介')
+    gender = Column(String(10), default='unknown', comment='性别：male、female、unknown')
+    birthday = Column(Date, comment='生日')
+    bio = Column(Text, comment='个人简介')
     location = Column(String(100), comment='所在地')
     status = Column(String(20), nullable=False, default='active', comment='状态：active、inactive、suspended')
     role = Column(String(20), nullable=False, default='user', comment='角色：user、blogger、admin、vip')
@@ -41,7 +42,8 @@ class User(Base):
     
     # 邀请相关
     invite_code = Column(String(20), unique=True, comment='邀请码')
-    invited_count = Column(Integer, nullable=False, default=0, comment='邀请人数')
+    inviter_id = Column(BigInteger, comment='邀请人ID')
+    invited_count = Column(BigInteger, nullable=False, default=0, comment='邀请人数')
     
     create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment='创建时间')
     update_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(),
@@ -74,10 +76,10 @@ class UserBlock(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment='拉黑ID')
     user_id = Column(BigInteger, nullable=False, comment='拉黑者用户ID')
     blocked_user_id = Column(BigInteger, nullable=False, comment='被拉黑用户ID')
-    user_username = Column(String(50), comment='拉黑者用户名')
-    blocked_username = Column(String(50), comment='被拉黑用户名')
+    user_username = Column(String(50), nullable=False, comment='拉黑者用户名')
+    blocked_username = Column(String(50), nullable=False, comment='被拉黑用户名')
     status = Column(String(20), nullable=False, default='active', comment='拉黑状态')
-    reason = Column(String(500), comment='拉黑原因')
+    reason = Column(String(200), comment='拉黑原因')
     create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment='创建时间')
     update_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(),
                         onupdate=func.current_timestamp(), comment='更新时间')

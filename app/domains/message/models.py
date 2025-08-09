@@ -2,7 +2,7 @@
 消息模块数据库模型
 与 sql/message-simple.sql 保持一致
 """
-from sqlalchemy import Column, BigInteger, String, Text, DateTime, Boolean, JSON
+from sqlalchemy import Column, BigInteger, String, Text, DateTime, Boolean, JSON, Integer
 from sqlalchemy.sql import func
 
 from app.database.connection import Base
@@ -35,7 +35,7 @@ class MessageSession(Base):
     other_user_id = Column(BigInteger, nullable=False, comment="对方用户ID")
     last_message_id = Column(BigInteger, comment="最后一条消息ID")
     last_message_time = Column(DateTime, comment="最后消息时间")
-    unread_count = Column(BigInteger, nullable=False, default=0, comment="未读消息数")
+    unread_count = Column(Integer, nullable=False, default=0, comment="未读消息数")
     is_archived = Column(Boolean, nullable=False, default=False, comment="是否归档")
     create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment="创建时间")
     update_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), onupdate=func.current_timestamp(), comment="更新时间")
