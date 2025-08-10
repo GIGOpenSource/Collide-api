@@ -89,7 +89,7 @@ async def get_content(
     try:
         service = ContentAsyncService(db)
         user_id = current_user.user_id if current_user else None
-        info = await service.get_content_by_id(content_id=content_id, current_user_id=user_id)
+        info = await service.get_content_by_id(content_id=content_id, user_id=user_id)
         return SuccessResponse.create(data=info)
     
     except BusinessException as e:

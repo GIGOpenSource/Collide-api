@@ -49,7 +49,7 @@ class ContentAsyncService:
         )
 
     async def get_content_by_id(self, content_id: int, user_id: Optional[int] = None) -> ContentInfo:
-        return await ContentQueryService(self.db).get_content_by_id(content_id)
+        return await ContentQueryService(self.db).get_content_by_id(content_id, current_user_id=user_id)
 
     async def update_content(self, content_id: int, content_data: ContentUpdate, user_id: int) -> ContentInfo:
         return await ContentUpdateService(self.db).update_content(content_id, content_data, user_id)
