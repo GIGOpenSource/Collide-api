@@ -21,6 +21,33 @@ class FileUploadRequest(BaseModel):
         return v
 
 
+class FileUploadResponse(BaseModel):
+    """文件上传响应"""
+    object_key: str = Field(description="S3对象键")
+    file_url: str = Field(description="文件访问URL")
+    file_name: str = Field(description="文件名")
+    file_size: int = Field(description="文件大小(字节)")
+    mime_type: str = Field(description="MIME类型")
+    expires_in: int = Field(description="URL过期时间(秒)")
+
+
+class PresignedUrlRequest(BaseModel):
+    """预签名URL请求"""
+    file_name: str = Field(..., description="文件名")
+    file_type: str = Field(..., description="文件类型")
+    mime_type: str = Field(..., description="MIME类型")
+    folder: Optional[str] = Field(None, description="存储文件夹")
+    expires_in: int = Field(3600, ge=300, le=86400, description="URL过期时间（秒）")
+
+
+class PresignedUrlResponse(BaseModel):
+    """预签名URL响应"""
+    upload_url: str = Field(description="上传URL")
+    download_url: str = Field(description="下载URL")
+    object_key: str = Field(description="S3对象键")
+    expires_in: int = Field(description="URL过期时间(秒)")
+
+
 class FileInfo(BaseModel):
     """文件信息"""
     id: int = Field(description="文件ID")
@@ -74,7 +101,7 @@ class UploadUrlResponse(BaseModel):
 
 class FileDeleteRequest(BaseModel):
     """文件删除请求"""
-    file_ids: List[int] = Field(..., description="要删除的文件ID列表")
+    object_key: str = Field(..., description="S3对象键")
 
 
 class StorageStats(BaseModel):
