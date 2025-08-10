@@ -2,7 +2,7 @@
 社交动态模块数据库模型
 与 sql/social-simple.sql 保持一致
 """
-from sqlalchemy import Column, BigInteger, String, Text, DateTime
+from sqlalchemy import Column, BigInteger, String, Text, DateTime, Integer, Boolean
 from sqlalchemy.sql import func
 
 from app.database.connection import Base
@@ -37,4 +37,29 @@ class SocialDynamic(Base):
     review_status = Column(String(20), nullable=False, default="PENDING", comment="审核状态：PENDING、APPROVED、REJECTED")
     create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment="创建时间")
     update_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), onupdate=func.current_timestamp(), comment="更新时间")
+
+
+class SocialPaidDynamic(Base):
+    """付费动态表"""
+    __tablename__ = "t_social_paid_dynamic"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment="付费动态ID")
+    dynamic_id = Column(BigInteger, nullable=False, comment="关联的动态ID")
+    price = Column(Integer, nullable=False, default=0, comment="价格（金币）")
+    purchase_count = Column(BigInteger, nullable=False, default=0, comment="购买次数")
+    total_income = Column(BigInteger, nullable=False, default=0, comment="总收入（金币）")
+    is_active = Column(Boolean, nullable=False, default=True, comment="是否激活")
+    create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment="创建时间")
+    update_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), onupdate=func.current_timestamp(), comment="更新时间")
+
+
+class SocialDynamicPurchase(Base):
+    """动态购买记录表"""
+    __tablename__ = "t_social_dynamic_purchase"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment="购买记录ID")
+    dynamic_id = Column(BigInteger, nullable=False, comment="动态ID")
+    buyer_id = Column(BigInteger, nullable=False, comment="购买者用户ID")
+    price = Column(Integer, nullable=False, comment="购买价格（金币）")
+    purchase_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment="购买时间")
 

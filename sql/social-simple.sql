@@ -39,5 +39,39 @@ CREATE TABLE `t_social_dynamic` (
   KEY `idx_user_id` (`user_id`),
   KEY `idx_dynamic_type` (`dynamic_type`),
   KEY `idx_status` (`status`),
+  KEY `idx_review_status` (`review_status`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='社交动态主表'; 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='社交动态主表';
+
+-- 付费动态表
+DROP TABLE IF EXISTS `t_social_paid_dynamic`;
+CREATE TABLE `t_social_paid_dynamic` (
+  `id`              BIGINT       NOT NULL AUTO_INCREMENT COMMENT '付费动态ID',
+  `dynamic_id`      BIGINT       NOT NULL                COMMENT '关联的动态ID',
+  `price`           INT          NOT NULL DEFAULT 0      COMMENT '价格（金币）',
+  `purchase_count`  BIGINT       NOT NULL DEFAULT 0      COMMENT '购买次数',
+  `total_income`    BIGINT       NOT NULL DEFAULT 0      COMMENT '总收入（金币）',
+  `is_active`       TINYINT(1)   NOT NULL DEFAULT 1      COMMENT '是否激活',
+  `create_time`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_dynamic_id` (`dynamic_id`),
+  KEY `idx_price` (`price`),
+  KEY `idx_is_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='付费动态表';
+
+-- 动态购买记录表
+DROP TABLE IF EXISTS `t_social_dynamic_purchase`;
+CREATE TABLE `t_social_dynamic_purchase` (
+  `id`              BIGINT       NOT NULL AUTO_INCREMENT COMMENT '购买记录ID',
+  `dynamic_id`      BIGINT       NOT NULL                COMMENT '动态ID',
+  `buyer_id`        BIGINT       NOT NULL                COMMENT '购买者用户ID',
+  `price`           INT          NOT NULL                COMMENT '购买价格（金币）',
+  `purchase_time`   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '购买时间',
+  
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_dynamic_buyer` (`dynamic_id`, `buyer_id`),
+  KEY `idx_buyer_id` (`buyer_id`),
+  KEY `idx_purchase_time` (`purchase_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='动态购买记录表'; 

@@ -113,11 +113,35 @@ async def require_blogger_role(
     user_context: UserContext = Depends(get_current_user_context)
 ) -> UserContext:
     """要求Blogger角色权限"""
-    # if "blogger" not in user_context.roles:
-    #     raise HTTPException(
-    #         status_code=403,
-    #         detail="需要博主权限"
-    #     )
+    if "blogger" not in user_context.roles:
+        raise HTTPException(
+            status_code=403,
+            detail="需要博主权限"
+        )
+    return user_context
+
+
+async def require_vip_or_blogger(
+    user_context: UserContext = Depends(get_current_user_context)
+) -> UserContext:
+    """要求VIP或Blogger角色权限"""
+    if not any(role in user_context.roles for role in ["vip", "blogger", "admin", "super_admin"]):
+        raise HTTPException(
+            status_code=403,
+            detail="需要VIP或博主权限"
+        )
+    return user_context
+
+
+async def require_blogger_for_paid_content(
+    user_context: UserContext = Depends(get_current_user_context)
+) -> UserContext:
+    """要求Blogger角色权限（用于付费内容）"""
+    if "blogger" not in user_context.roles:
+        raise HTTPException(
+            status_code=403,
+            detail="只有博主才能发布付费内容"
+        )
     return user_context
 
 

@@ -94,3 +94,58 @@ class DynamicQuery(BaseModel):
     user_id: Optional[int] = Field(None, description="用户ID过滤")
     status: Optional[str] = Field(None, description="状态过滤")
 
+
+# ==================== 付费动态相关模型 ====================
+
+class PaidDynamicCreate(BaseModel):
+    """创建付费动态请求"""
+    dynamic_id: int = Field(..., description="动态ID")
+    price: int = Field(..., ge=1, le=10000, description="价格（金币）")
+    
+    @field_validator("price")
+    @classmethod
+    def validate_price(cls, v):
+        if v < 1:
+            raise ValueError("价格必须大于0")
+        if v > 10000:
+            raise ValueError("价格不能超过10000金币")
+        return v
+
+
+class PaidDynamicInfo(BaseModel):
+    """付费动态信息"""
+    id: int = Field(description="付费动态ID")
+    dynamic_id: int = Field(description="动态ID")
+    price: int = Field(description="价格（金币）")
+    purchase_count: int = Field(description="购买次数")
+    total_income: int = Field(description="总收入（金币）")
+    is_active: bool = Field(description="是否激活")
+    create_time: datetime = Field(description="创建时间")
+    update_time: datetime = Field(description="更新时间")
+    
+    model_config = {"from_attributes": True}
+
+
+class DynamicPurchaseRequest(BaseModel):
+    """购买动态请求"""
+    dynamic_id: int = Field(..., description="动态ID")
+
+
+class DynamicPurchaseInfo(BaseModel):
+    """动态购买信息"""
+    id: int = Field(description="购买记录ID")
+    dynamic_id: int = Field(description="动态ID")
+    buyer_id: int = Field(description="购买者用户ID")
+    price: int = Field(description="购买价格（金币）")
+    purchase_time: datetime = Field(description="购买时间")
+    
+    model_config = {"from_attributes": True}
+
+
+class DynamicWithPaidInfo(DynamicInfo):
+    """带付费信息的动态"""
+    is_paid: bool = Field(default=False, description="是否为付费动态")
+    price: Optional[int] = Field(None, description="价格（金币）")
+    is_purchased: bool = Field(default=False, description="当前用户是否已购买")
+    purchase_count: Optional[int] = Field(None, description="购买次数")
+
