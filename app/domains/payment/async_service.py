@@ -4,6 +4,7 @@
 """
 from datetime import datetime
 from typing import Optional
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -13,6 +14,10 @@ from app.common.exceptions import BusinessException
 from app.domains.payment.adapters import PaymentAdapter
 from app.domains.payment.services.init_service import PaymentInitService
 from app.domains.payment.services.callback_service import PaymentCallbackService
+from app.domains.payment.services.purchase_processor import PaymentPurchaseProcessor
+from app.domains.order.async_service import OrderAsyncService
+
+logger = logging.getLogger(__name__)
 
 
 class PaymentAsyncService:
@@ -52,6 +57,18 @@ class PaymentAsyncService:
             # 标记订单已支付
             order_svc = OrderAsyncService(self.db)
             await order_svc.mark_paid(notify.order_no, pay_method=po.pay_type)
+            
+            # 处理商品购买成功后的业务逻辑
+            try:
+                purchase_processor = PaymentPurchaseProcessor(self.db)
+                result = await purchase_processor.process_payment_success(notify.order_no)
+                if result.get("error"):
+                    logger.error(f"处理商品购买逻辑失败: {result['error']}")
+                else:
+                    logger.info(f"商品购买处理成功: {result}")
+            except Exception as e:
+                logger.error(f"处理商品购买逻辑异常: {str(e)}", exc_info=True)
+            
             return True
         elif notify.status == "failed":
             po.status = "failed"

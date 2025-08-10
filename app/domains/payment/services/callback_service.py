@@ -1,12 +1,16 @@
 from datetime import datetime
 from typing import Any, Dict
+import logging
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+logger = logging.getLogger(__name__)
+
 from app.domains.order.async_service import OrderAsyncService
 from app.domains.payment.adapters import PaymentAdapter
 from app.domains.payment.models import PaymentChannel, PaymentOrder, PaymentNotifyLog
+from app.domains.payment.services.purchase_processor import PaymentPurchaseProcessor
 
 
 class PaymentCallbackService:
@@ -71,8 +75,21 @@ class PaymentCallbackService:
                 po.pay_time = normalized.pay_time or datetime.now()
                 po.notify_time = datetime.now()
                 await self.db.commit()
+                
+                # 标记订单已支付
                 order_svc = OrderAsyncService(self.db)
                 await order_svc.mark_paid(normalized.order_no, pay_method=po.pay_type)
+                
+                # 处理商品购买成功后的业务逻辑
+                try:
+                    purchase_processor = PaymentPurchaseProcessor(self.db)
+                    result = await purchase_processor.process_payment_success(normalized.order_no)
+                    if result.get("error"):
+                        logger.error(f"处理商品购买逻辑失败: {result['error']}")
+                    else:
+                        logger.info(f"商品购买处理成功: {result}")
+                except Exception as e:
+                    logger.error(f"处理商品购买逻辑异常: {str(e)}", exc_info=True)
         elif normalized.status == "failed":
             if po.status not in ("paid", "failed"):
                 po.status = "failed"

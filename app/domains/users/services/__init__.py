@@ -5,5 +5,6 @@ __all__ = [
     "UserWalletService",
     "UserBlockService",
     "BloggerService",
+    "CoinPurchaseService",
 ]
 

@@ -104,8 +104,23 @@ async def list_comments(
         )
         result = await service.list_comments(query, pagination)
         return PaginationResponse.from_pagination_result(result, "获取成功")
-    except Exception:
-        raise HTTPException(status_code=500, detail="获取评论列表失败")
+    except BusinessException as e:
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
+    except Exception as e:
+        logger.error(f"获取评论列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取评论列表失败，请稍后重试"
+        )
 
 
 @router.get("/tree/{comment_type}/{target_id}", response_model=SuccessResponse[List[CommentTreeInfo]], summary="获取树状评论")
@@ -139,9 +154,22 @@ async def get_comment_replies(
         result = await service.get_comment_replies(comment_id, pagination)
         return PaginationResponse.from_pagination_result(result, "获取回复成功")
     except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
-    except Exception:
-        raise HTTPException(status_code=500, detail="获取回复失败")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
+    except Exception as e:
+        logger.error(f"获取回复失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取回复失败，请稍后重试"
+        )
 
 
 @router.get("/count/{comment_type}/{target_id}", response_model=SuccessResponse[int], summary="获取评论总数")

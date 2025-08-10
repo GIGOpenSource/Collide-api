@@ -59,9 +59,22 @@ async def get_conversation_messages(
         result = await service.get_message_list(current_user.user_id, other_user_id, query, pagination)
         return PaginationResponse.from_pagination_result(result, "获取对话消息成功")
     except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail="获取对话消息失败")
+        logger.error(f"获取对话消息失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取对话消息失败，请稍后重试"
+        )
 
 
 @router.get("/sessions", response_model=SuccessResponse[list[MessageSessionInfo]], summary="获取会话列表")

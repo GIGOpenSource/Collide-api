@@ -115,9 +115,22 @@ async def get_goods_list(
         result = await service.get_goods_list(query, pagination)
         return PaginationResponse.from_pagination_result(result, "获取商品列表成功")
     except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail="获取商品列表失败")
+        logger.error(f"获取商品列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取商品列表失败，请稍后重试"
+        )
 
 
 @router.get("/category/{category_id}", response_model=SuccessResponse[List[GoodsInfo]], summary="根据分类获取商品")

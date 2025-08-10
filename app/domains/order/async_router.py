@@ -64,9 +64,22 @@ async def list_orders(
             current_page=result.page, page_size=result.page_size, message="获取成功"
         )
     except BusinessException as e:
-        return handle_business_error(e.message, e.code)
-    except Exception:
-        return handle_system_error("获取订单列表失败，请稍后重试")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
+    except Exception as e:
+        logger.error(f"获取订单列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取订单列表失败，请稍后重试"
+        )
 
 
 @router.post("/{order_id}/cancel", response_model=SuccessResponse[bool], summary="取消订单")

@@ -49,8 +49,23 @@ async def get_my_likes(
         service = LikeAsyncService(db)
         result = await service.get_my_likes(current_user.user_id, query, pagination)
         return PaginationResponse.from_pagination_result(result, message="获取成功")
+    except BusinessException as e:
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail="获取我的点赞列表失败")
+        logger.error(f"获取我的点赞列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取我的点赞列表失败，请稍后重试"
+        )
 
 
 @router.get("/{like_type}/{target_id}/users", response_model=PaginationResponse[LikeUserInfo], summary="获取点赞用户列表")
@@ -65,6 +80,21 @@ async def get_likers_by_target(
         service = LikeAsyncService(db)
         result = await service.get_likers_by_target(like_type, target_id, pagination)
         return PaginationResponse.from_pagination_result(result, message="获取成功")
+    except BusinessException as e:
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail="获取点赞用户列表失败")
+        logger.error(f"获取点赞用户列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取点赞用户列表失败，请稍后重试"
+        )
 

@@ -123,7 +123,7 @@ async def get_user_list(
             pagination=pagination
         )
         return PaginationResponse.create(
-            items=result.items,
+            datas=result.items,
             total=result.total,
             current_page=result.page,
             page_size=result.page_size,
@@ -131,10 +131,22 @@ async def get_user_list(
         )
     
     except BusinessException as e:
-        return handle_business_error(e.message, e.code)
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
     except Exception as e:
         logger.error(f"获取用户列表失败: {str(e)}")
-        return handle_system_error("获取用户列表失败，请稍后重试")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取用户列表失败，请稍后重试"
+        )
 
 
 # ==================== 钱包管理接口 ====================
@@ -226,7 +238,7 @@ async def get_block_list(
         user_service = UserAsyncService(db)
         result = await user_service.get_block_list(current_user_id, pagination)
         return PaginationResponse.create(
-            items=result.items,
+            datas=result.items,
             total=result.total,
             current_page=result.page,
             page_size=result.page_size,
@@ -234,10 +246,22 @@ async def get_block_list(
         )
     
     except BusinessException as e:
-        return handle_business_error(e.message, e.code)
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
     except Exception as e:
         logger.error(f"获取拉黑列表失败: {str(e)}")
-        return handle_system_error("获取拉黑列表失败，请稍后重试")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取拉黑列表失败，请稍后重试"
+        )
 
 
 # ==================== 密码管理接口 ====================

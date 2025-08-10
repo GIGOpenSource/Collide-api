@@ -91,8 +91,23 @@ async def list_categories(
         service = CategoryAsyncService(db)
         result = await service.get_category_list(query, pagination)
         return PaginationResponse.from_pagination_result(result, "获取成功")
-    except Exception:
-        raise HTTPException(status_code=500, detail="获取分类列表失败")
+    except BusinessException as e:
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
+    except Exception as e:
+        logger.error(f"获取分类列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取分类列表失败，请稍后重试"
+        )
 
 
 @router.get("/tree", response_model=SuccessResponse[List[CategoryTreeNode]], summary="获取分类树", description="获取所有活跃分类的层级结构")

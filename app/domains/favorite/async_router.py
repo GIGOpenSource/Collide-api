@@ -60,9 +60,22 @@ async def get_favorite_list(
         result = await service.get_favorite_list(query, pagination)
         return PaginationResponse.from_pagination_result(result, "获取收藏列表成功")
     except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail="获取收藏列表失败")
+        logger.error(f"获取收藏列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取收藏列表失败，请稍后重试"
+        )
 
 
 @router.get("/check/{favorite_type}/{target_id}", response_model=SuccessResponse[dict], summary="检查收藏状态")

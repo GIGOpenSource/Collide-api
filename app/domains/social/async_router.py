@@ -104,8 +104,23 @@ async def list_dynamics(
         current_user_id = current_user.user_id if current_user else None
         result = await service.list_dynamics(query, pagination, current_user_id)
         return PaginationResponse.from_pagination_result(result, "获取成功")
-    except Exception:
-        raise HTTPException(status_code=500, detail="获取动态列表失败")
+    except BusinessException as e:
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
+    except Exception as e:
+        logger.error(f"获取动态列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取动态列表失败，请稍后重试"
+        )
 
 
 @router.get("/dynamics/my", response_model=PaginationResponse[DynamicInfo], summary="获取我的动态列表")
@@ -128,8 +143,23 @@ async def list_my_dynamics(
         query = DynamicQuery(keyword=keyword, dynamic_type=dynamic_type, user_id=current_user.user_id, status=status)
         result = await service.list_my_dynamics(query, pagination, current_user.user_id, review_status)
         return PaginationResponse.from_pagination_result(result, "获取成功")
-    except Exception:
-        raise HTTPException(status_code=500, detail="获取我的动态列表失败")
+    except BusinessException as e:
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
+    except Exception as e:
+        logger.error(f"获取我的动态列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取我的动态列表失败，请稍后重试"
+        )
 
 
 # ================ 审核状态相关接口 ================
@@ -283,8 +313,23 @@ async def list_dynamics_with_paid_info(
         current_user_id = current_user.user_id if current_user else None
         result = await service.list_dynamics_with_paid_info(query, pagination, current_user_id)
         return PaginationResponse.from_pagination_result(result, "获取成功")
-    except Exception:
-        raise HTTPException(status_code=500, detail="获取动态列表失败")
+    except BusinessException as e:
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
+    except Exception as e:
+        logger.error(f"获取动态列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取动态列表失败，请稍后重试"
+        )
 
 
 @router.get("/dynamics/my-purchases", response_model=SuccessResponse[List[DynamicPurchaseInfo]], summary="获取我的购买记录")
@@ -344,6 +389,21 @@ async def list_pending_review_dynamics(
         query = DynamicQuery(keyword=keyword, dynamic_type=dynamic_type, user_id=user_id, status="normal")
         result = await service.list_pending_review_dynamics(query, pagination)
         return PaginationResponse.from_pagination_result(result, "获取成功")
-    except Exception:
-        raise HTTPException(status_code=500, detail="获取待审核动态列表失败")
+    except BusinessException as e:
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
+    except Exception as e:
+        logger.error(f"获取待审核动态列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取待审核动态列表失败，请稍后重试"
+        )
 

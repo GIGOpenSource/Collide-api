@@ -9,6 +9,7 @@ from app.common.pagination import PaginationParams, PaginationResult
 from app.domains.goods.services.create_service import GoodsCreateService
 from app.domains.goods.services.update_service import GoodsUpdateService
 from app.domains.goods.services.query_service import GoodsQueryService
+from app.domains.goods.services.purchase_service import GoodsPurchaseService
 
 
 class GoodsAsyncService:
@@ -72,3 +73,15 @@ class GoodsAsyncService:
         rows = await self.db.execute(stmt)
         goods_list = rows.scalars().all()
         return [GoodsInfo.model_validate(g) for g in goods_list]
+
+    async def process_purchase_success(self, order_no: str) -> dict:
+        """
+        处理商品购买成功后的业务逻辑
+        
+        Args:
+            order_no: 订单号
+            
+        Returns:
+            dict: 处理结果信息
+        """
+        return await GoodsPurchaseService(self.db).process_purchase_success(order_no)

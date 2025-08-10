@@ -349,6 +349,7 @@ class ComprehensiveDataGenerator:
                     description=fake.text(max_nb_chars=300),
                     content_type=content_type,
                     content_data=f"https://cdn.example.com/{content_type.lower()}/{fake.uuid4()}",
+                    content_data_time=str(random.randint(30, 7200)) if content_type in ['LONG_VIDEO', 'SHORT_VIDEO', 'AUDIO'] else None,  # 添加缺失的content_data_time字段
                     cover_url=fake.image_url(width=400, height=600),
                     tags=",".join(t.name for t in random.sample(self.tags, random.randint(1, 5))),
                     author_id=user.id,
@@ -380,6 +381,7 @@ class ComprehensiveDataGenerator:
                     content_id=content.id,
                     payment_type=payment_type,
                     coin_price=coin_price,
+                    original_price=coin_price + random.randint(0, 50) if coin_price > 0 else None,  # 添加缺失的original_price字段
                     vip_free=1 if payment_type == 'VIP_FREE' else 0,
                     trial_enabled=1 if content_type in ['NOVEL', 'ARTICLE'] else 0,
                 )
@@ -980,7 +982,15 @@ class ComprehensiveDataGenerator:
 
         orders = []
         payment_orders = []
-        payment_channels = [PaymentChannel(channel_code='shark_pay', channel_name='大白鲨支付', provider='shark', merchant_id='test_id', app_secret='test_secret', api_gateway='http://example.com/api')]
+        payment_channels = [PaymentChannel(
+            channel_code='shark_pay', 
+            channel_name='大白鲨支付', 
+            provider='shark', 
+            channel_type='H5',  # 渠道类型：H5、APP、PC
+            merchant_id='test_id', 
+            app_secret='test_secret', 
+            api_gateway='http://example.com/api'
+        )]
 
         async with self.AsyncSessionLocal() as session:
             session.add_all(payment_channels)
@@ -1007,6 +1017,7 @@ class ComprehensiveDataGenerator:
                     payment_mode=payment_mode,
                     cash_amount=good.price,
                     coin_cost=coin_cost,
+                    total_amount=good.price,  # 添加缺失的total_amount字段
                     final_amount=final_amount,
                     status='completed' if random.random() > 0.2 else 'pending',
                     pay_status='paid' if random.random() > 0.3 else 'unpaid',
@@ -1039,7 +1050,11 @@ class ComprehensiveDataGenerator:
         
         # Hot Searches
         hot_keywords = [fake.word() for _ in range(hot_count)]
-        hot_searches = [HotSearch(keyword=kw, search_count=random.randint(100, 10000)) for kw in hot_keywords]
+        hot_searches = [HotSearch(
+            keyword=kw, 
+            search_count=random.randint(100, 10000),
+            trend_score=Decimal(random.uniform(0, 100)).quantize(Decimal("0.01"))
+        ) for kw in hot_keywords]
         
         # Search History
         search_history = []
@@ -1048,7 +1063,8 @@ class ComprehensiveDataGenerator:
                 history = SearchHistory(
                     user_id=random.choice(self.users).id,
                     keyword=random.choice(hot_keywords),
-                    search_type='content'
+                    search_type='content',
+                    result_count=random.randint(0, 100)
                 )
                 search_history.append(history)
 
@@ -1080,7 +1096,8 @@ class ComprehensiveDataGenerator:
                     task_type=1, # Daily
                     task_category=category,
                     task_action=action,
-                    target_count=random.randint(1, 5)
+                    target_count=random.randint(1, 5),
+                    sort_order=i  # 添加缺失的sort_order字段
                 )
                 templates.append(template)
             
@@ -1092,6 +1109,7 @@ class ComprehensiveDataGenerator:
                     task_id=template.id,
                     reward_type=1, # Coin
                     reward_name='金币奖励',
+                    reward_desc=f'完成任务获得{random.randint(10, 100)}金币',  # 添加缺失的reward_desc字段
                     reward_amount=random.randint(10, 100)
                 )
                 rewards.append(reward)
@@ -1115,6 +1133,7 @@ class ComprehensiveDataGenerator:
                 ad_type=random.choice(ad_types),
                 image_url=fake.image_url(),
                 click_url=fake.url(),
+                target_type='_blank',  # 添加缺失的target_type字段
                 sort_order=random.randint(1, 100)
             )
             ads.append(ad)

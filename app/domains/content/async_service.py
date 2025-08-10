@@ -22,6 +22,7 @@ from app.domains.content.services.chapter_service import ContentChapterService
 from app.domains.content.services.payment_service import ContentPaymentService
 from app.domains.content.services.stats_service import ContentStatsService
 from app.domains.content.services.rating_service import ContentRatingService
+from app.domains.users.async_service import UserAsyncService
 
 
 class ContentAsyncService:
@@ -87,6 +88,23 @@ class ContentAsyncService:
     async def get_content_review_status(self, content_ids: List[int]) -> List[ContentReviewStatusInfo]:
         """批量查询内容审核状态"""
         return await ContentQueryService(self.db).get_content_review_status(content_ids)
+
+    # ================ 内容购买相关方法 ================
+    
+    async def purchase_content(self, user_id: int, content_id: int, coin_cost: int):
+        """购买内容（使用金币）"""
+        user_service = UserAsyncService(self.db)
+        return await user_service.purchase_content_with_coins(user_id, content_id, coin_cost)
+    
+    async def check_content_purchase_status(self, user_id: int, content_id: int):
+        """检查内容购买状态"""
+        user_service = UserAsyncService(self.db)
+        return await user_service.check_content_purchase_status(user_id, content_id)
+    
+    async def get_user_content_purchases(self, user_id: int, limit: int = 20):
+        """获取用户内容购买记录"""
+        user_service = UserAsyncService(self.db)
+        return await user_service.get_user_purchases(user_id, "content", limit)
 
     # ================ 聚合查询方法 ================
 
