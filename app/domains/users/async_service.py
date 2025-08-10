@@ -26,6 +26,7 @@ from app.domains.users.services.query_service import UserQueryService
 from app.domains.users.services.profile_service import UserProfileService
 from app.domains.users.services.auth_service import UserAuthService
 from app.domains.users.services.wallet_service import UserWalletService
+from app.domains.users.services.coin_purchase_service import CoinPurchaseService
 from app.domains.users.models import User, UserBlock, Role, UserRole
 
 
@@ -368,3 +369,25 @@ class UserAsyncService:
             raise BusinessException("用户不存在")
         
         return self._verify_password(request.password, user.password_hash)
+
+    # ==================== 金币购买相关方法 ====================
+    
+    async def purchase_content_with_coins(self, user_id: int, content_id: int, coin_cost: int):
+        """使用金币购买内容"""
+        return await CoinPurchaseService(self.db).purchase_content(user_id, content_id, coin_cost)
+    
+    async def purchase_social_dynamic_with_coins(self, user_id: int, dynamic_id: int, coin_cost: int):
+        """使用金币购买社交动态"""
+        return await CoinPurchaseService(self.db).purchase_social_dynamic(user_id, dynamic_id, coin_cost)
+    
+    async def check_content_purchase_status(self, user_id: int, content_id: int):
+        """检查内容购买状态"""
+        return await CoinPurchaseService(self.db).check_content_purchase_status(user_id, content_id)
+    
+    async def check_dynamic_purchase_status(self, user_id: int, dynamic_id: int):
+        """检查动态购买状态"""
+        return await CoinPurchaseService(self.db).check_dynamic_purchase_status(user_id, dynamic_id)
+    
+    async def get_user_purchases(self, user_id: int, purchase_type: str = "content", limit: int = 20):
+        """获取用户购买记录"""
+        return await CoinPurchaseService(self.db).get_user_purchases(user_id, purchase_type, limit)
