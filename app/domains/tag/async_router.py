@@ -115,6 +115,78 @@ router = APIRouter(prefix="/api/v1/tags", tags=["标签管理"])
 
 # ==================== 用户标签接口 ====================
 
+@router.get("/hot", response_model=SuccessResponse[List[TagInfo]], summary="获取热门标签列表")
+async def get_hot_tags(
+    tag_type: Optional[str] = Query(None, description="标签类型：content、interest、system"),
+    limit: int = Query(20, ge=1, le=100, description="返回数量，默认20个"),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    获取热门标签列表
+    
+    - **tag_type**: 标签类型筛选
+    - **limit**: 返回数量限制
+    """
+    try:
+        service = TagAsyncService(db)
+        hot_tags = await service.get_hot_tags(tag_type, limit)
+        return SuccessResponse.create(data=hot_tags, message="获取热门标签成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="获取热门标签失败")
+
+
+@router.get("/search", response_model=SuccessResponse[List[TagInfo]], summary="根据标签名称搜索标签")
+async def search_tags_by_name(
+    name: str = Query(..., min_length=1, description="标签名称（支持模糊搜索）"),
+    tag_type: Optional[str] = Query(None, description="标签类型：content、interest、system"),
+    limit: int = Query(20, ge=1, le=100, description="返回数量，默认20个"),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    根据标签名称搜索标签
+    
+    - **name**: 标签名称（支持模糊搜索）
+    - **tag_type**: 标签类型筛选
+    - **limit**: 返回数量限制
+    """
+    try:
+        service = TagAsyncService(db)
+        tags = await service.search_tags_by_name(name, tag_type, limit)
+        return SuccessResponse.create(data=tags, message="搜索标签成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="搜索标签失败")
+
+
+@router.post("/create-by-name", response_model=SuccessResponse[TagInfo], summary="根据标签名称创建标签")
+async def create_tag_by_name(
+    name: str = Query(..., min_length=1, max_length=50, description="标签名称"),
+    tag_type: str = Query("content", description="标签类型：content、interest、system"),
+    description: Optional[str] = Query(None, description="标签描述"),
+    category_id: Optional[int] = Query(None, description="分类ID"),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    根据标签名称创建标签
+    
+    - **name**: 标签名称
+    - **tag_type**: 标签类型
+    - **description**: 标签描述（可选）
+    - **category_id**: 分类ID（可选）
+    """
+    try:
+        service = TagAsyncService(db)
+        tag = await service.create_tag_by_name(name, tag_type, description, category_id)
+        return SuccessResponse.create(data=tag, message="创建标签成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="创建标签失败")
+
+
 @router.post("/user-interest", response_model=SuccessResponse[UserInterestTagInfo], summary="添加用户兴趣标签")
 async def add_user_interest_tag(
     req: UserInterestTagCreate,
