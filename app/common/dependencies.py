@@ -113,7 +113,7 @@ async def require_blogger_role(
     user_context: UserContext = Depends(get_current_user_context)
 ) -> UserContext:
     """要求Blogger角色权限"""
-    if "blogger" not in user_context.roles:
+    if ["blogger", "user"] not in user_context.roles:
         raise HTTPException(
             status_code=403,
             detail="需要博主权限"
