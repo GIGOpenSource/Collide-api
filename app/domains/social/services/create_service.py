@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import BusinessException
@@ -9,7 +10,7 @@ class SocialCreateService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_dynamic(self, user_id: int, user_nickname: str | None, user_avatar: str | None, data: DynamicCreate) -> DynamicInfo:
+    async def create_dynamic(self, user_id: int, user_nickname: Optional[str], user_avatar: Optional[str], data: DynamicCreate) -> DynamicInfo:
         try:
             dynamic = SocialDynamic(
                 content=data.content,

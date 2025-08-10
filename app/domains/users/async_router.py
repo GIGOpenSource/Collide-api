@@ -111,17 +111,18 @@ async def get_user_list(
     """
     try:
         user_service = UserAsyncService(db)
-        result = await user_service.get_user_list(
-            current_user_id=current_user_id,
-            keyword=keyword,
+        # 构建查询参数
+        query = UserQuery(
+            username=keyword,  # 关键词搜索用户名
+            nickname=keyword,  # 关键词搜索昵称
             role=role,
-            follower_min=follower_min,
-            follower_max=follower_max,
-            like_min=like_min,
-            like_max=like_max,
-            status=status,
-            pagination=pagination
+            follower_count_min=follower_min,
+            follower_count_max=follower_max,
+            like_count_min=like_min,
+            like_count_max=like_max,
+            status=status
         )
+        result = await user_service.get_user_list(query, pagination)
         return PaginationResponse.create(
             datas=result.items,
             total=result.total,
