@@ -20,7 +20,7 @@ from typing import Final
 class SnowflakeGenerator:
     _epoch_ms: Final[int] = int(time.mktime((2024, 1, 1, 0, 0, 0, 0, 0, 0)) * 1000)
 
-    def __init__(self, datacenter_id: int | None = None, worker_id: int | None = None):
+    def __init__(self, datacenter_id: Optional[int] = None, worker_id: Optional[int] = None):
         self.datacenter_id_bits: Final[int] = 5
         self.worker_id_bits: Final[int] = 5
         self.sequence_bits: Final[int] = 12
