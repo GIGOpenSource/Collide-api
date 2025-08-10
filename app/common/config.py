@@ -65,6 +65,20 @@ class Settings(BaseSettings):
     # 上游支付网关默认基础地址（可选），例如：https://pay.example.com
     default_payment_api_base_url: Optional[str] = None
     
+    # AWS S3 存储配置
+    aws_access_key_id: str
+    aws_secret_access_key: str
+    aws_region: str
+    aws_s3_bucket_name: str
+    
+    # 存储安全配置
+    allowed_domains: Optional[str] = None  # 允许的域名列表，逗号分隔
+    max_file_size: int = 10485760  # 最大文件大小，默认10MB
+    allowed_extensions: Optional[str] = None  # 允许的文件扩展名，逗号分隔
+    
+    # CDN配置（可选）
+    cdn_domain: Optional[str] = None  # CDN域名
+    
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

@@ -13,6 +13,7 @@ CREATE TABLE `t_content` (
     `description`     TEXT                                 COMMENT '内容描述',
     `content_type`    VARCHAR(50)  NOT NULL                COMMENT '内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO',
     `content_data`    VARCHAR(500)                         COMMENT '内容数据URL',
+    `content_data_time` VARCHAR(500)              COMMENT '内容数据时长（秒）',
     `cover_url`       VARCHAR(500)                         COMMENT '封面图片URL',
     `tags`            TEXT                                 COMMENT '标签，逗号分隔或JSON格式',
     

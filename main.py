@@ -39,7 +39,7 @@ from app.domains.task.async_router import router as task_router
 from app.domains.goods.async_router import router as goods_router
 from app.domains.order.async_router import router as order_router
 from app.domains.payment.async_router import router as payment_router
-from app.domains.category.async_router import router as category_router
+from app.domains.storage.async_router import router as storage_router
 
 # 配置日志
 logging.basicConfig(
@@ -258,6 +258,7 @@ app.include_router(task_router)
 app.include_router(goods_router)
 app.include_router(order_router)
 app.include_router(payment_router)
+app.include_router(storage_router)
 
 # 健康检查接口
 @app.get("/health", tags=["系统"], summary="健康检查")
