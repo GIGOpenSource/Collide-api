@@ -41,7 +41,8 @@ class TagInfo(BaseModel):
 
 class UserInterestTagCreate(BaseModel):
     """创建用户兴趣标签请求"""
-    tag_id: int = Field(..., description="标签ID")
+    tag_id: Optional[int] = Field(None, description="标签ID（与tag_name二选一）")
+    tag_name: Optional[str] = Field(None, description="标签名称（与tag_id二选一，不存在则自动创建）")
     interest_score: Decimal = Field(..., ge=0, le=100, description="兴趣分数（0-100）")
 
 
@@ -61,7 +62,8 @@ class UserInterestTagInfo(BaseModel):
 class ContentTagCreate(BaseModel):
     """创建内容标签关联请求"""
     content_id: int = Field(..., description="内容ID")
-    tag_ids: List[int] = Field(..., description="标签ID列表")
+    tag_ids: Optional[List[int]] = Field(None, description="标签ID列表（与tag_names二选一）")
+    tag_names: Optional[List[str]] = Field(None, description="标签名称列表（与tag_ids二选一，不存在则自动创建）")
 
 
 class TagQuery(BaseModel):

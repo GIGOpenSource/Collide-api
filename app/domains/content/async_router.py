@@ -57,9 +57,7 @@ async def create_content(
         service = ContentAsyncService(db)
         content_info = await service.create_content(
             content_data=content_data, 
-            user_id=current_user.user_id,
-            user_nickname=current_user.username,
-            user_avatar=None  # 假设暂时没有头像信息
+            user_id=current_user.user_id
         )
         return SuccessResponse.create(data=content_info, message="内容创建成功，等待审核")
     

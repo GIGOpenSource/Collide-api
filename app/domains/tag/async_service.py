@@ -51,7 +51,7 @@ class TagAsyncService:
         return await TagQueryService(self.db).get_user_interest_tags(user_id)
 
     async def add_content_tags(self, req: ContentTagCreate):
-        return await TagCreateService(self.db).add_content_tags(req.content_id, req.tag_ids)
+        return await TagCreateService(self.db).add_content_tags(req.content_id, req.tag_ids, req.tag_names)
 
     async def get_content_tags(self, content_id: int) -> List[TagInfo]:
         """获取内容的标签"""

@@ -30,7 +30,21 @@ class ContentAsyncService:
         self.db = db
 
     async def create_content(self, content_data: ContentCreate, user_id: int) -> ContentInfo:
-        return await ContentCreateService(self.db).create_content(content_data, user_id)
+        # 获取用户信息
+        from app.domains.users.models import User
+        from sqlalchemy import select
+        
+        user = (await self.db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+        if not user:
+            from app.common.exceptions import BusinessException
+            raise BusinessException("用户不存在")
+        
+        return await ContentCreateService(self.db).create_content(
+            content_data, 
+            user_id, 
+            user.nickname or user.username,
+            user.avatar or ""
+        )
 
     async def get_content_by_id(self, content_id: int, user_id: Optional[int] = None) -> ContentInfo:
         return await ContentQueryService(self.db).get_content_by_id(content_id)
