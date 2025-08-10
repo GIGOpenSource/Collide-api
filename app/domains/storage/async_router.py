@@ -152,25 +152,25 @@ async def download_file(
         raise HTTPException(status_code=500, detail="文件下载失败")
 
 
-@router.delete("/file", response_model=SuccessResponse[bool], summary="删除文件")
-async def delete_file(
-    request: FileDeleteRequest,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: UserContext = Depends(get_current_user),
-):
-    """
-    删除文件
+# @router.delete("/file", response_model=SuccessResponse[bool], summary="删除文件")
+# async def delete_file(
+#     request: FileDeleteRequest,
+#     db: AsyncSession = Depends(get_async_db),
+#     current_user: UserContext = Depends(get_current_user),
+# ):
+#     """
+#     删除文件
     
-    - **object_key**: S3对象键
-    """
-    try:
-        service = StorageAsyncService(db)
-        result = await service.delete_file(request.object_key)
-        return SuccessResponse.create(data=result, message="文件删除成功")
-    except BusinessException as e:
-        raise HTTPException(status_code=400, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="文件删除失败")
+#     - **object_key**: S3对象键
+#     """
+#     try:
+#         service = StorageAsyncService(db)
+#         result = await service.delete_file(request.object_key)
+#         return SuccessResponse.create(data=result, message="文件删除成功")
+#     except BusinessException as e:
+#         raise HTTPException(status_code=400, detail=e.message)
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail="文件删除失败")
 
 
 @router.get("/validate/{object_key:path}", response_model=SuccessResponse[bool], summary="验证文件访问权限")
