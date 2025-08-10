@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import BusinessException
 from app.domains.social.models import SocialDynamic
-from app.domains.social.schemas import DynamicUpdate, DynamicInfo
+from app.domains.social.schemas import DynamicUpdate, DynamicInfo, DynamicReviewRequest
 
 
 class SocialUpdateService:
@@ -36,4 +36,25 @@ class SocialUpdateService:
         except Exception as e:
             await self.db.rollback()
             raise BusinessException(f"删除动态失败: {str(e)}")
+
+    async def review_dynamic(self, dynamic_id: int, review_data: DynamicReviewRequest) -> DynamicInfo:
+        """审核动态"""
+        try:
+            stmt = select(SocialDynamic).where(SocialDynamic.id == dynamic_id)
+            dynamic = (await self.db.execute(stmt)).scalar_one_or_none()
+            if not dynamic:
+                raise BusinessException("动态不存在")
+            
+            # 更新审核状态
+            update_values = {"review_status": review_data.review_status}
+            await self.db.execute(update(SocialDynamic).where(SocialDynamic.id == dynamic_id).values(**update_values))
+            await self.db.commit()
+            await self.db.refresh(dynamic)
+            
+            return DynamicInfo.model_validate(dynamic)
+        except BusinessException:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            raise BusinessException(f"审核动态失败: {str(e)}")
 

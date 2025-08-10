@@ -4,7 +4,7 @@
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domains.social.schemas import DynamicCreate, DynamicUpdate, DynamicInfo, DynamicQuery
+from app.domains.social.schemas import DynamicCreate, DynamicUpdate, DynamicInfo, DynamicQuery, DynamicReviewStatusInfo, DynamicReviewStatusQuery
 from app.common.pagination import PaginationParams, PaginationResult
 from app.domains.social.services.create_service import SocialCreateService
 from app.domains.social.services.update_service import SocialUpdateService
@@ -26,9 +26,28 @@ class SocialAsyncService:
     async def delete_dynamic(self, dynamic_id: int, user_id: int) -> bool:
         return await SocialUpdateService(self.db).delete_dynamic(dynamic_id, user_id)
 
-    async def get_dynamic_by_id(self, dynamic_id: int) -> DynamicInfo:
-        return await SocialQueryService(self.db).get_dynamic_by_id(dynamic_id)
+    async def get_dynamic_by_id(self, dynamic_id: int, current_user_id: Optional[int] = None) -> DynamicInfo:
+        return await SocialQueryService(self.db).get_dynamic_by_id(dynamic_id, current_user_id)
 
-    async def list_dynamics(self, query: DynamicQuery, pagination: PaginationParams) -> PaginationResult[DynamicInfo]:
-        return await SocialQueryService(self.db).list_dynamics(query, pagination)
+    async def list_dynamics(self, query: DynamicQuery, pagination: PaginationParams, current_user_id: Optional[int] = None) -> PaginationResult[DynamicInfo]:
+        return await SocialQueryService(self.db).list_dynamics(query, pagination, current_user_id)
+
+    # ================ 审核状态相关方法 ================
+
+    async def get_dynamic_review_status(self, dynamic_ids: List[int]) -> List[DynamicReviewStatusInfo]:
+        """批量查询动态审核状态"""
+        return await SocialQueryService(self.db).get_dynamic_review_status(dynamic_ids)
+
+    async def list_my_dynamics(self, query: DynamicQuery, pagination: PaginationParams, current_user_id: int, review_status: Optional[str] = None) -> PaginationResult[DynamicInfo]:
+        """获取用户自己的动态列表（包括所有审核状态）"""
+        return await SocialQueryService(self.db).list_my_dynamics(query, pagination, current_user_id, review_status)
+
+    async def review_dynamic(self, dynamic_id: int, review_data: DynamicReviewRequest) -> DynamicInfo:
+        """审核动态"""
+        from app.domains.social.services.update_service import SocialUpdateService
+        return await SocialUpdateService(self.db).review_dynamic(dynamic_id, review_data)
+
+    async def list_pending_review_dynamics(self, query: DynamicQuery, pagination: PaginationParams) -> PaginationResult[DynamicInfo]:
+        """获取待审核的动态列表"""
+        return await SocialQueryService(self.db).list_pending_review_dynamics(query, pagination)
 

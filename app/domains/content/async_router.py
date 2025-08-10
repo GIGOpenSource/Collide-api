@@ -22,7 +22,8 @@ from app.domains.content.schemas import (
     ChapterCreate, ChapterUpdate, ChapterInfo, ChapterListItem,
     ContentPaymentCreate, ContentPaymentUpdate, ContentPaymentInfo,
     UserContentPurchaseCreate, UserContentPurchaseInfo,
-    PublishContentRequest, ContentStatsUpdate, ScoreContentRequest
+    PublishContentRequest, ContentStatsUpdate, ScoreContentRequest,
+    ContentReviewStatusInfo, ContentReviewStatusQuery
 )
 import logging
 
@@ -980,3 +981,39 @@ async def get_contents_by_category_name(
     except Exception as e:
         logger.error(f"按分类名称查询内容失败: {str(e)}")
         raise HTTPException(status_code=500, detail="按分类名称查询内容失败，请稍后重试")
+
+
+# ================ 审核状态相关接口 ================
+
+@router.post("/review-status", response_model=SuccessResponse[List[ContentReviewStatusInfo]], summary="批量查询内容审核状态", description="批量查询多个内容的审核状态")
+async def get_content_review_status(
+    request: ContentReviewStatusQuery,
+    current_user: UserContext = Depends(get_current_user_context),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """
+    批量查询内容审核状态
+    
+    用于前端批量查询多个内容的审核状态，支持最多100个内容ID
+    
+    - **content_ids**: 内容ID列表，最多支持100个
+    
+    返回每个内容的审核状态信息，包括：
+    - content_id: 内容ID
+    - title: 内容标题
+    - content_type: 内容类型
+    - status: 内容状态（DRAFT、PUBLISHED、OFFLINE）
+    - review_status: 审核状态（PENDING、APPROVED、REJECTED）
+    - create_time: 创建时间
+    - update_time: 更新时间
+    """
+    try:
+        service = ContentAsyncService(db)
+        review_status_list = await service.get_content_review_status(request.content_ids)
+        return SuccessResponse.create(data=review_status_list, message="获取审核状态成功")
+    
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"查询内容审核状态失败: {str(e)}")
+        return handle_system_error("查询内容审核状态失败，请稍后重试")

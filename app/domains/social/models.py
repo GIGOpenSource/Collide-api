@@ -34,6 +34,7 @@ class SocialDynamic(Base):
     share_count = Column(BigInteger, nullable=False, default=0, comment="分享数")
 
     status = Column(String(20), nullable=False, default="normal", comment="状态：normal、hidden、deleted")
+    review_status = Column(String(20), nullable=False, default="PENDING", comment="审核状态：PENDING、APPROVED、REJECTED")
     create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment="创建时间")
     update_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), onupdate=func.current_timestamp(), comment="更新时间")
 

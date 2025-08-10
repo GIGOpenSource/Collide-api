@@ -29,7 +29,9 @@ CREATE TABLE `t_social_dynamic` (
   `comment_count` BIGINT      NOT NULL DEFAULT 0     COMMENT '评论数（冗余统计）',
   `share_count`  BIGINT       NOT NULL DEFAULT 0     COMMENT '分享数（冗余统计）',
   
+  -- 状态相关字段
   `status`       VARCHAR(20)  NOT NULL DEFAULT 'normal' COMMENT '状态：normal、hidden、deleted',
+  `review_status` VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT '审核状态：PENDING、APPROVED、REJECTED',
   `create_time`  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time`  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   

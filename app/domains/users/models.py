@@ -104,3 +104,15 @@ class UserBlock(Base):
     create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment='创建时间')
     update_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(),
                         onupdate=func.current_timestamp(), comment='更新时间')
+
+
+class BloggerApplication(Base):
+    """Blogger申请表"""
+    __tablename__ = 't_blogger_application'
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment='申请ID')
+    user_id = Column(BigInteger, nullable=False, comment='申请用户ID')
+    status = Column(String(20), nullable=False, default='PENDING', comment='申请状态：PENDING、APPROVED、REJECTED')
+    create_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(), comment='申请时间')
+    update_time = Column(DateTime, nullable=False, server_default=func.current_timestamp(),
+                        onupdate=func.current_timestamp(), comment='更新时间')

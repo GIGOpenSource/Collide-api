@@ -3,7 +3,7 @@
 """
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DynamicBase(BaseModel):
@@ -41,10 +41,50 @@ class DynamicInfo(DynamicBase):
     comment_count: int = Field(default=0, description="评论数")
     share_count: int = Field(default=0, description="分享数")
     status: str = Field(default="normal", description="状态")
+    review_status: str = Field(default="PENDING", description="审核状态：PENDING、APPROVED、REJECTED")
     create_time: datetime = Field(..., description="创建时间")
     update_time: datetime = Field(..., description="更新时间")
 
     model_config = {"from_attributes": True}
+
+
+class DynamicReviewStatusInfo(BaseModel):
+    """动态审核状态信息"""
+    dynamic_id: int = Field(..., description="动态ID")
+    content: str = Field(..., description="动态内容")
+    dynamic_type: str = Field(..., description="动态类型")
+    status: str = Field(..., description="动态状态：normal、hidden、deleted")
+    review_status: str = Field(..., description="审核状态：PENDING、APPROVED、REJECTED")
+    create_time: datetime = Field(..., description="创建时间")
+    update_time: datetime = Field(..., description="更新时间")
+    
+    model_config = {"from_attributes": True}
+
+
+class DynamicReviewStatusQuery(BaseModel):
+    """动态审核状态查询参数"""
+    dynamic_ids: List[int] = Field(..., description="动态ID列表，最多支持100个")
+    
+    @field_validator("dynamic_ids")
+    @classmethod
+    def validate_dynamic_ids(cls, v):
+        if len(v) > 100:
+            raise ValueError("一次最多查询100个动态的审核状态")
+        return v
+
+
+class DynamicReviewRequest(BaseModel):
+    """动态审核请求"""
+    dynamic_id: int = Field(..., description="动态ID")
+    review_status: str = Field(..., description="审核状态：APPROVED、REJECTED")
+    review_comment: Optional[str] = Field(None, description="审核备注")
+    
+    @field_validator("review_status")
+    @classmethod
+    def validate_review_status(cls, v):
+        if v not in ["APPROVED", "REJECTED"]:
+            raise ValueError("审核状态必须是 APPROVED 或 REJECTED")
+        return v
 
 
 class DynamicQuery(BaseModel):

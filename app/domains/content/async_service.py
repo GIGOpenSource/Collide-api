@@ -11,7 +11,8 @@ from app.domains.content.schemas import (
     ChapterCreate, ChapterUpdate, ChapterInfo, ChapterListItem,
     ContentPaymentCreate, ContentPaymentInfo,
     UserContentPurchaseCreate, UserContentPurchaseInfo,
-    PublishContentRequest, ContentStatsUpdate, ScoreContentRequest
+    PublishContentRequest, ContentStatsUpdate, ScoreContentRequest,
+    ContentReviewStatusInfo, ContentReviewStatusQuery
 )
 from app.common.pagination import PaginationParams, PaginationResult
 from app.domains.content.services.create_service import ContentCreateService
@@ -80,6 +81,12 @@ class ContentAsyncService:
 
     async def get_content_payment(self, content_id: int) -> Optional[ContentPaymentInfo]:
         return await ContentPaymentService(self.db).get_content_payment(content_id)
+
+    # ================ 审核状态相关方法 ================
+
+    async def get_content_review_status(self, content_ids: List[int]) -> List[ContentReviewStatusInfo]:
+        """批量查询内容审核状态"""
+        return await ContentQueryService(self.db).get_content_review_status(content_ids)
 
     # ================ 聚合查询方法 ================
 

@@ -112,7 +112,7 @@ class UserCreateRequest(BaseModel):
     @validator('role')
     def validate_role(cls, v):
         if v not in ['user', 'blogger', 'admin', 'vip']:
-            raise ValueError('用户角色只能是user、blogger、admin或vip')
+            raise ValueError('角色只能是user、blogger、admin或vip')
         return v
 
 
@@ -229,8 +229,6 @@ class UserBlockInfo(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# ==================== 查询参数模型 ====================
-
 class UserListQuery(BaseModel):
     """用户列表查询参数"""
     keyword: Optional[str] = Field(None, description="搜索关键词（用户名/昵称）")
@@ -238,3 +236,22 @@ class UserListQuery(BaseModel):
     status: Optional[str] = Field(None, description="用户状态筛选")
     page: int = Field(default=1, ge=1, description="页码")
     page_size: int = Field(default=20, ge=1, le=100, description="每页大小")
+
+
+# ==================== Blogger申请相关模型 ====================
+
+class BloggerApplicationCreate(BaseModel):
+    """Blogger申请创建请求"""
+    # 不需要额外字段，只需要用户ID（从当前用户上下文获取）
+    pass
+
+
+class BloggerApplicationInfo(BaseModel):
+    """Blogger申请信息响应"""
+    id: int = Field(description="申请ID")
+    user_id: int = Field(description="申请用户ID")
+    status: str = Field(description="申请状态：PENDING、APPROVED、REJECTED")
+    create_time: datetime = Field(description="申请时间")
+    update_time: datetime = Field(description="更新时间")
+    
+    model_config = {"from_attributes": True}

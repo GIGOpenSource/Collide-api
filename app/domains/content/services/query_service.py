@@ -7,7 +7,7 @@ from app.common.cache_service import cache_service
 from app.common.exceptions import BusinessException
 from app.common.pagination import PaginationParams, PaginationResult
 from app.domains.content.models import Content, ContentChapter
-from app.domains.content.schemas import ContentInfo, ContentQueryParams, ChapterListItem
+from app.domains.content.schemas import ContentInfo, ContentQueryParams, ChapterListItem, ContentReviewStatusInfo
 
 
 class ContentQueryService:
@@ -142,4 +142,30 @@ class ContentQueryService:
         items = [ChapterListItem.model_validate(c) for c in chap_list]
         await cache_service.set(cache_key, [c.model_dump() for c in items], ttl=1800)
         return items
+
+    async def get_content_review_status(self, content_ids: List[int]) -> List[ContentReviewStatusInfo]:
+        """批量查询内容审核状态"""
+        if not content_ids:
+            return []
+        
+        # 查询指定内容ID的审核状态
+        stmt = select(Content).where(Content.id.in_(content_ids))
+        rows = await self.db.execute(stmt)
+        contents = rows.scalars().all()
+        
+        # 转换为审核状态信息
+        review_status_list = []
+        for content in contents:
+            review_status_info = ContentReviewStatusInfo(
+                content_id=content.id,
+                title=content.title,
+                content_type=content.content_type,
+                status=content.status,
+                review_status=content.review_status,
+                create_time=content.create_time,
+                update_time=content.update_time
+            )
+            review_status_list.append(review_status_info)
+        
+        return review_status_list
 

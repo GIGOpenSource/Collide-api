@@ -8,14 +8,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_async_db
 from app.domains.users.async_service import UserAsyncService
+from app.domains.users.services.blogger_service import BloggerService
 from app.domains.users.schemas import (
     UserUpdateRequest, PasswordChangeRequest, UserBlockRequest,
-    UserInfo, UserWalletInfo, UserBlockInfo, UserQuery
+    UserInfo, UserWalletInfo, UserBlockInfo, UserQuery,
+    BloggerApplicationCreate, BloggerApplicationInfo
 )
 from app.common.response import SuccessResponse, PaginationResponse, handle_business_error, handle_system_error
 from app.common.dependencies import get_current_user_id, get_pagination, get_current_user_context, UserContext
 from app.common.pagination import PaginationParams
 from app.common.exceptions import BusinessException
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/users", tags=["用户管理"])
 
@@ -101,24 +106,22 @@ async def get_user_list(
     """
     获取用户列表
     
-    需要用户登录，支持分页和筛选
+    支持按关键词搜索、角色筛选、粉丝数范围、获赞数范围等条件筛选
+    需要用户登录，支持分页
     """
     try:
         user_service = UserAsyncService(db)
-        
-        # 构建查询参数
-        query = UserQuery(
-            username=keyword or None,
-            nickname=keyword or None,
-            status=status,
+        result = await user_service.get_user_list(
+            current_user_id=current_user_id,
+            keyword=keyword,
             role=role,
-            follower_count_min=follower_min,
-            follower_count_max=follower_max,
-            like_count_min=like_min,
-            like_count_max=like_max,
+            follower_min=follower_min,
+            follower_max=follower_max,
+            like_min=like_min,
+            like_max=like_max,
+            status=status,
+            pagination=pagination
         )
-        
-        result = await user_service.get_user_list(query, pagination)
         return PaginationResponse.create(
             items=result.items,
             total=result.total,
@@ -134,7 +137,7 @@ async def get_user_list(
         return handle_system_error("获取用户列表失败，请稍后重试")
 
 
-# ==================== 钱包相关接口 ====================
+# ==================== 钱包管理接口 ====================
 
 @router.get("/me/wallet", response_model=SuccessResponse[UserWalletInfo], summary="获取当前用户钱包信息")
 async def get_current_user_wallet(
@@ -158,10 +161,7 @@ async def get_current_user_wallet(
         return handle_system_error("获取钱包信息失败，请稍后重试")
 
 
-# 移除按ID获取钱包接口（不需要）
-
-
-# ==================== 用户管理接口 ====================
+# ==================== 拉黑管理接口 ====================
 
 @router.post("/block", response_model=SuccessResponse[UserBlockInfo], summary="拉黑用户")
 async def block_user(
@@ -264,3 +264,75 @@ async def change_password(
     except Exception as e:
         logger.error(f"密码修改失败: {str(e)}")
         return handle_system_error("密码修改失败，请稍后重试")
+
+
+# ==================== Blogger申请相关接口 ====================
+
+@router.post("/blogger/apply", response_model=SuccessResponse[BloggerApplicationInfo], summary="申请Blogger权限")
+async def apply_for_blogger(
+    request: BloggerApplicationCreate,
+    db: AsyncSession = Depends(get_async_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    申请Blogger权限
+    
+    用户申请成为内容创作者，需要审核通过后才能获得Blogger角色
+    """
+    try:
+        blogger_service = BloggerService(db)
+        application = await blogger_service.apply_for_blogger(current_user_id)
+        return SuccessResponse.create(data=application, message="Blogger申请提交成功，请等待审核")
+    
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"申请Blogger权限失败: {str(e)}")
+        return handle_system_error("申请Blogger权限失败，请稍后重试")
+
+
+@router.get("/blogger/status", response_model=SuccessResponse[BloggerApplicationInfo], summary="查询Blogger申请状态")
+async def get_blogger_application_status(
+    db: AsyncSession = Depends(get_async_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    查询Blogger申请状态
+    
+    返回当前用户的Blogger申请状态信息
+    """
+    try:
+        blogger_service = BloggerService(db)
+        application = await blogger_service.get_application_status(current_user_id)
+        return SuccessResponse.create(data=application, message="获取申请状态成功")
+    
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"查询Blogger申请状态失败: {str(e)}")
+        return handle_system_error("查询Blogger申请状态失败，请稍后重试")
+
+
+@router.get("/blogger/check", response_model=SuccessResponse[dict], summary="检查Blogger状态")
+async def check_blogger_status(
+    db: AsyncSession = Depends(get_async_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    检查Blogger状态
+    
+    返回用户的Blogger状态信息，包括：
+    - is_blogger: 是否已经是Blogger
+    - application_status: 申请状态（PENDING/APPROVED/REJECTED/null）
+    - can_apply: 是否可以申请
+    """
+    try:
+        blogger_service = BloggerService(db)
+        status_info = await blogger_service.check_blogger_status(current_user_id)
+        return SuccessResponse.create(data=status_info, message="获取Blogger状态成功")
+    
+    except BusinessException as e:
+        return handle_business_error(e.message, e.code)
+    except Exception as e:
+        logger.error(f"检查Blogger状态失败: {str(e)}")
+        return handle_system_error("检查Blogger状态失败，请稍后重试")

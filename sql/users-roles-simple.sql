@@ -29,3 +29,17 @@ CREATE TABLE `t_user_role` (
     KEY `idx_user_id` (`user_id`),
     KEY `idx_role_id` (`role_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色关联表';
+
+-- Blogger申请表
+DROP TABLE IF EXISTS `t_blogger_application`;
+CREATE TABLE `t_blogger_application` (
+    `id`              BIGINT       NOT NULL AUTO_INCREMENT COMMENT '申请ID',
+    `user_id`         BIGINT       NOT NULL                COMMENT '申请用户ID',
+    `status`          VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT '申请状态：PENDING、APPROVED、REJECTED',
+    `create_time`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请时间',
+    `update_time`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_application` (`user_id`),
+    KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Blogger申请表';

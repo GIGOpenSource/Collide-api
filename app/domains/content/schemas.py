@@ -180,7 +180,7 @@ class ChapterListItem(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# ================ 付费配置模型 ================
+# ================ 付费配置相关模型 ================
 
 class ContentPaymentBase(BaseModel):
     """内容付费配置基础模型"""
@@ -229,7 +229,7 @@ class ContentPaymentInfo(ContentPaymentBase):
     model_config = {"from_attributes": True}
 
 
-# ================ 购买记录模型 ================
+# ================ 购买记录相关模型 ================
 
 class UserContentPurchaseBase(BaseModel):
     """用户内容购买记录基础模型"""
@@ -262,7 +262,7 @@ class UserContentPurchaseInfo(UserContentPurchaseBase):
     access_count: int = Field(default=0, description="访问次数")
     last_access_time: Optional[datetime] = Field(None, description="最后访问时间")
     create_time: datetime = Field(..., description="创建时间")
-    update_time: datetime = Field(..., description="更新时间")
+    update_time: datetime = Field(None, description="更新时间")
     
     model_config = {"from_attributes": True}
 
@@ -307,7 +307,7 @@ class ContentQueryParams(BaseModel):
     
     sort_by: str = Field(default="create_time", description="排序字段：create_time, update_time, publish_time, view_count, like_count, favorite_count, comment_count, score")
     sort_order: str = Field(default="desc", description="排序方向：asc, desc")
-
+    
     @field_validator("content_type", mode="before")
     @classmethod
     def _normalize_query_content_type(cls, v):
@@ -318,6 +318,8 @@ class ContentQueryParams(BaseModel):
             return upper_v
         return v
 
+
+# ================ 其他请求模型 ================
 
 class PublishContentRequest(BaseModel):
     """发布内容请求模型"""
@@ -333,3 +335,30 @@ class ContentStatsUpdate(BaseModel):
 class ScoreContentRequest(BaseModel):
     """内容评分请求模型"""
     score: int = Field(..., ge=1, le=5, description="评分：1-5分")
+
+
+# ================ 审核状态相关模型 ================
+
+class ContentReviewStatusInfo(BaseModel):
+    """内容审核状态信息"""
+    content_id: int = Field(..., description="内容ID")
+    title: str = Field(..., description="内容标题")
+    content_type: str = Field(..., description="内容类型")
+    status: str = Field(..., description="内容状态：DRAFT、PUBLISHED、OFFLINE")
+    review_status: str = Field(..., description="审核状态：PENDING、APPROVED、REJECTED")
+    create_time: datetime = Field(..., description="创建时间")
+    update_time: datetime = Field(..., description="更新时间")
+    
+    model_config = {"from_attributes": True}
+
+
+class ContentReviewStatusQuery(BaseModel):
+    """内容审核状态查询参数"""
+    content_ids: List[int] = Field(..., description="内容ID列表，最多支持100个")
+    
+    @field_validator("content_ids")
+    @classmethod
+    def validate_content_ids(cls, v):
+        if len(v) > 100:
+            raise ValueError("一次最多查询100个内容的审核状态")
+        return v
