@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy import select, update, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,7 +52,7 @@ class UserProfileService:
             raise BusinessException("用户不存在")
         return UserInfo.model_validate(user)
 
-    async def block_user(self, user_id: int, blocked_user_id: int, reason: str | None = None):
+    async def block_user(self, user_id: int, blocked_user_id: int, reason: Optional[str] = None):
         user = (await self.db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         blocked_user = (await self.db.execute(select(User).where(User.id == blocked_user_id))).scalar_one_or_none()
         if not user or not blocked_user:
