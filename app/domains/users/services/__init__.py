@@ -4,5 +4,6 @@ __all__ = [
     "UserAuthService",
     "UserWalletService",
     "UserBlockService",
+    "BloggerService",
 ]
 
