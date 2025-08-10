@@ -63,6 +63,7 @@ class ContentBase(BaseModel):
         ..., description="内容类型：NOVEL、COMIC、LONG_VIDEO、SHORT_VIDEO、ARTICLE、AUDIO"
     )
     content_data: Optional[str] = Field(None, max_length=500, description="内容数据URL")
+    content_data_time: Optional[str] = Field(None, max_length=500, description="内容数据时长（秒）")
     cover_url: Optional[str] = Field(None, max_length=500, description="封面图片URL")
     tags: Optional[str] = Field(None, description="标签，逗号分隔或JSON格式")
     category_id: Optional[int] = Field(None, description="分类ID")
@@ -90,6 +91,7 @@ class ContentUpdate(BaseModel):
     title: Optional[str] = Field(None, max_length=200, description="内容标题")
     description: Optional[str] = Field(None, description="内容描述")
     content_data: Optional[str] = Field(None, max_length=500, description="内容数据URL")
+    content_data_time: Optional[str] = Field(None, max_length=500, description="内容数据时长（秒）")
     cover_url: Optional[str] = Field(None, max_length=500, description="封面图片URL")
     tags: Optional[str] = Field(None, description="标签")
     category_id: Optional[int] = Field(None, description="分类ID")

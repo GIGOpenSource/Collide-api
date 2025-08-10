@@ -79,6 +79,7 @@ class ContentDataGenerator:
                     description=fake.text(max_nb_chars=300),
                     content_type=content_type,
                     content_data=f"https://cdn.example.com/{content_type.lower()}/{fake.uuid4()}.{self._get_file_extension(content_type)}",
+                    content_data_time=str(random.randint(60, 7200)),  # 1分钟到2小时
                     cover_url=fake.image_url(width=400, height=600),
                     tags=",".join(fake.words(nb=random.randint(3, 8))),
                     author_id=user_id,

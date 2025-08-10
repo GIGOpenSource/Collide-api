@@ -29,6 +29,8 @@ class ContentUpdateService:
             update_data["category_id"] = content_data.category_id
         if content_data.content_data is not None:
             update_data["content_data"] = content_data.content_data
+        if content_data.content_data_time is not None:
+            update_data["content_data_time"] = content_data.content_data_time
         if content_data.cover_url is not None:
             update_data["cover_url"] = content_data.cover_url
         if content_data.tags is not None:
