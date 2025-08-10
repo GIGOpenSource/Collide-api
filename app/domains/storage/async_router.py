@@ -16,7 +16,7 @@ from app.domains.storage.schemas import (
 )
 from app.common.response import SuccessResponse
 from app.common.exceptions import BusinessException
-from app.common.dependencies import get_current_user, UserContext
+from app.common.dependencies import get_current_user_context, UserContext
 
 router = APIRouter(prefix="/api/v1/storage", tags=["存储管理"])
 
@@ -28,7 +28,7 @@ async def upload_file(
     folder: Optional[str] = Form(None, description="存储文件夹"),
     is_public: bool = Form(True, description="是否公开访问"),
     db: AsyncSession = Depends(get_async_db),
-    current_user: UserContext = Depends(get_current_user),
+    current_user: UserContext = Depends(get_current_user_context),
 ):
     """
     上传文件到S3存储
@@ -66,7 +66,7 @@ async def upload_file(
 async def get_presigned_url(
     request: PresignedUrlRequest,
     db: AsyncSession = Depends(get_async_db),
-    current_user: UserContext = Depends(get_current_user),
+    current_user: UserContext = Depends(get_current_user_context),
 ):
     """
     获取预签名URL用于客户端直接上传到S3
@@ -95,7 +95,7 @@ async def get_presigned_url(
 async def get_file_info(
     object_key: str,
     db: AsyncSession = Depends(get_async_db),
-    current_user: UserContext = Depends(get_current_user),
+    current_user: UserContext = Depends(get_current_user_context),
 ):
     """
     获取文件信息
@@ -156,7 +156,7 @@ async def download_file(
 # async def delete_file(
 #     request: FileDeleteRequest,
 #     db: AsyncSession = Depends(get_async_db),
-#     current_user: UserContext = Depends(get_current_user),
+#     current_user: UserContext = Depends(get_current_user_context),
 # ):
 #     """
 #     删除文件
@@ -207,7 +207,7 @@ async def validate_file_access(
 async def refresh_file_url(
     request: UrlRefreshRequest,
     db: AsyncSession = Depends(get_async_db),
-    current_user: UserContext = Depends(get_current_user),
+    current_user: UserContext = Depends(get_current_user_context),
 ):
     """
     刷新文件访问URL
@@ -233,7 +233,7 @@ async def refresh_file_url(
 async def batch_refresh_urls(
     request: BatchUrlRefreshRequest,
     db: AsyncSession = Depends(get_async_db),
-    current_user: UserContext = Depends(get_current_user),
+    current_user: UserContext = Depends(get_current_user_context),
 ):
     """
     批量刷新文件URL
@@ -260,7 +260,7 @@ async def get_file_url_info(
     object_key: str,
     expires_in: int = 3600,
     db: AsyncSession = Depends(get_async_db),
-    current_user: UserContext = Depends(get_current_user),
+    current_user: UserContext = Depends(get_current_user_context),
 ):
     """
     获取文件URL详细信息
