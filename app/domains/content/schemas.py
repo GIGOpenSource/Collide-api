@@ -4,7 +4,7 @@
 """
 from datetime import datetime
 from typing import Optional, List, Literal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, field_serializer
 
 
 # ================ 枚举类型 ================
@@ -126,6 +126,13 @@ class ContentInfo(ContentBase):
     average_score: Optional[float] = Field(None, description="平均评分")
     
     model_config = {"from_attributes": True}
+    
+    @field_serializer('publish_time', 'create_time', 'update_time')
+    def serialize_datetime(self, dt: Optional[datetime]) -> Optional[str]:
+        """序列化时间字段为指定格式"""
+        if dt is None:
+            return None
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -166,6 +173,11 @@ class ChapterInfo(ChapterBase):
     update_time: datetime = Field(..., description="更新时间")
     
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time', 'update_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class ChapterListItem(BaseModel):
@@ -178,6 +190,11 @@ class ChapterListItem(BaseModel):
     create_time: datetime = Field(..., description="创建时间")
     
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 # ================ 付费配置相关模型 ================
@@ -227,6 +244,11 @@ class ContentPaymentInfo(ContentPaymentBase):
     update_time: datetime = Field(..., description="更新时间")
     
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time', 'update_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 # ================ 购买记录相关模型 ================
@@ -265,6 +287,13 @@ class UserContentPurchaseInfo(UserContentPurchaseBase):
     update_time: datetime = Field(None, description="更新时间")
     
     model_config = {"from_attributes": True}
+    
+    @field_serializer('purchase_time', 'expire_time', 'last_access_time', 'create_time', 'update_time')
+    def serialize_datetime(self, dt: Optional[datetime]) -> Optional[str]:
+        """序列化时间字段为指定格式"""
+        if dt is None:
+            return None
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 # ================ 查询参数模型 ================
@@ -350,6 +379,11 @@ class ContentReviewStatusInfo(BaseModel):
     update_time: datetime = Field(..., description="更新时间")
     
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time', 'update_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class ContentReviewStatusQuery(BaseModel):
