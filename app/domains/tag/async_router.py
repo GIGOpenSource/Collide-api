@@ -22,20 +22,20 @@ router = APIRouter(prefix="/api/v1/tags", tags=["标签管理"])
 
 # ==================== 管理员接口（已注释） ====================
 
-# @router.post("/", response_model=SuccessResponse[TagInfo], summary="创建标签")
-# async def create_tag(
-#     req: TagCreate,
-#     db: AsyncSession = Depends(get_async_db),
-# ):
-#     """创建标签"""
-#     try:
-#         service = TagAsyncService(db)
-#         tag = await service.create_tag(req)
-#         return SuccessResponse.create(data=tag, message="创建标签成功")
-#     except BusinessException as e:
-#         raise HTTPException(status_code=400, detail=e.message)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail="创建标签失败")
+@router.post("/", response_model=SuccessResponse[TagInfo], summary="创建标签")
+async def create_tag(
+    req: TagCreate,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """创建标签"""
+    try:
+        service = TagAsyncService(db)
+        tag = await service.create_tag(req)
+        return SuccessResponse.create(data=tag, message="创建标签成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="创建标签失败")
 
 
 # @router.put("/{tag_id}", response_model=SuccessResponse[TagInfo], summary="更新标签")
@@ -87,30 +87,30 @@ router = APIRouter(prefix="/api/v1/tags", tags=["标签管理"])
 #         raise HTTPException(status_code=500, detail="获取标签详情失败")
 
 
-# @router.get("/", response_model=PaginationResponse[TagInfo], summary="获取标签列表")
-# async def get_tag_list(
-#     tag_type: Optional[str] = Query(None, description="标签类型：content、interest、system"),
-#     category_id: Optional[int] = Query(None, description="分类ID"),
-#     status: Optional[str] = Query(None, description="状态：active、inactive"),
-#     keyword: Optional[str] = Query(None, description="关键词搜索"),
-#     pagination: PaginationParams = Depends(get_pagination),
-#     db: AsyncSession = Depends(get_async_db),
-# ):
-#     """获取标签列表"""
-#     try:
-#         service = TagAsyncService(db)
-#         query = TagQuery(
-#             tag_type=tag_type,
-#             category_id=category_id,
-#             status=status,
-#             keyword=keyword
-#         )
-#         result = await service.get_tag_list(query, pagination)
-#         return PaginationResponse.from_pagination_result(result, "获取标签列表成功")
-#     except BusinessException as e:
-#         raise HTTPException(status_code=400, detail=e.message)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail="获取标签列表失败")
+@router.get("/", response_model=PaginationResponse[TagInfo], summary="获取标签列表")
+async def get_tag_list(
+    tag_type: Optional[str] = Query(None, description="标签类型：content、interest、system"),
+    category_id: Optional[int] = Query(None, description="分类ID"),
+    status: Optional[str] = Query(None, description="状态：active、inactive"),
+    keyword: Optional[str] = Query(None, description="关键词搜索"),
+    pagination: PaginationParams = Depends(get_pagination),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """获取标签列表"""
+    try:
+        service = TagAsyncService(db)
+        query = TagQuery(
+            tag_type=tag_type,
+            category_id=category_id,
+            status=status,
+            keyword=keyword
+        )
+        result = await service.get_tag_list(query, pagination)
+        return PaginationResponse.from_pagination_result(result, "获取标签列表成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="获取标签列表失败")
 
 
 # ==================== 用户标签接口 ====================
