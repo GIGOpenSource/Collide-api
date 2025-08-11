@@ -130,8 +130,8 @@ async def get_ad_list(
             page_size=pagination.page_size,
             message=e.message
         )
-            except Exception as e:
-            return PaginationResponse.create(
+    except Exception as e:
+        return PaginationResponse.create(
             datas=[],
             total=0,
             current_page=pagination.page,
