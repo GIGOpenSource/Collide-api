@@ -48,6 +48,13 @@ class DynamicInfo(DynamicBase):
     model_config = {"from_attributes": True}
 
 
+class DynamicWithFollowInfo(DynamicInfo):
+    """带关注状态信息的动态"""
+    is_following: bool = Field(default=False, description="当前用户是否关注了发布者")
+    is_followed_by: bool = Field(default=False, description="发布者是否关注了当前用户")
+    is_mutual_follow: bool = Field(default=False, description="是否相互关注")
+
+
 class DynamicReviewStatusInfo(BaseModel):
     """动态审核状态信息"""
     dynamic_id: int = Field(..., description="动态ID")
@@ -93,6 +100,16 @@ class DynamicQuery(BaseModel):
     dynamic_type: Optional[str] = Field(None, description="动态类型")
     user_id: Optional[int] = Field(None, description="用户ID过滤")
     status: Optional[str] = Field(None, description="状态过滤")
+    # 排序相关字段
+    sort_by: Optional[str] = Field(None, description="排序字段：create_time、like_count、comment_count、share_count")
+    sort_order: Optional[str] = Field("desc", description="排序方向：asc、desc")
+    # 数值范围筛选
+    min_likes: Optional[int] = Field(None, description="最小点赞数")
+    max_likes: Optional[int] = Field(None, description="最大点赞数")
+    min_comments: Optional[int] = Field(None, description="最小评论数")
+    max_comments: Optional[int] = Field(None, description="最大评论数")
+    min_shares: Optional[int] = Field(None, description="最小分享数")
+    max_shares: Optional[int] = Field(None, description="最大分享数")
 
 
 # ==================== 付费动态相关模型 ====================

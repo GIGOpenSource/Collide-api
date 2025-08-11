@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domains.social.schemas import DynamicCreate, DynamicUpdate, DynamicInfo, DynamicQuery, DynamicReviewStatusInfo, DynamicReviewStatusQuery, DynamicReviewRequest, PaidDynamicCreate, PaidDynamicInfo, DynamicPurchaseRequest, DynamicPurchaseInfo, DynamicWithPaidInfo
+from app.domains.social.schemas import DynamicCreate, DynamicUpdate, DynamicInfo, DynamicQuery, DynamicReviewStatusInfo, DynamicReviewStatusQuery, DynamicReviewRequest, PaidDynamicCreate, PaidDynamicInfo, DynamicPurchaseRequest, DynamicPurchaseInfo, DynamicWithPaidInfo, DynamicWithFollowInfo
 from app.common.pagination import PaginationParams, PaginationResult
 from app.domains.social.services.create_service import SocialCreateService
 from app.domains.social.services.update_service import SocialUpdateService
@@ -96,6 +96,10 @@ class SocialAsyncService:
     async def list_dynamics_with_paid_info(self, query: DynamicQuery, pagination: PaginationParams, current_user_id: Optional[int] = None) -> PaginationResult[DynamicWithPaidInfo]:
         """获取带付费信息的动态列表"""
         return await SocialQueryService(self.db).list_dynamics_with_paid_info(query, pagination, current_user_id)
+
+    async def list_dynamics_with_follow_info(self, query: DynamicQuery, pagination: PaginationParams, current_user_id: Optional[int] = None) -> PaginationResult[DynamicWithFollowInfo]:
+        """获取带关注状态信息的动态列表"""
+        return await SocialQueryService(self.db).list_dynamics_with_follow_info(query, pagination, current_user_id)
 
     async def get_user_purchases(self, user_id: int, limit: int = 20) -> List[DynamicPurchaseInfo]:
         """获取用户的购买记录"""
