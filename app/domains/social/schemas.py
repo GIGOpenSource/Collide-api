@@ -3,7 +3,7 @@
 """
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, field_serializer
 
 
 class DynamicBase(BaseModel):
@@ -46,6 +46,11 @@ class DynamicInfo(DynamicBase):
     update_time: datetime = Field(..., description="更新时间")
 
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time', 'update_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class DynamicWithFollowInfo(DynamicInfo):
@@ -66,6 +71,11 @@ class DynamicReviewStatusInfo(BaseModel):
     update_time: datetime = Field(..., description="更新时间")
     
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time', 'update_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class DynamicReviewStatusQuery(BaseModel):
@@ -141,6 +151,11 @@ class PaidDynamicInfo(BaseModel):
     update_time: datetime = Field(description="更新时间")
     
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time', 'update_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class DynamicPurchaseRequest(BaseModel):
@@ -157,6 +172,11 @@ class DynamicPurchaseInfo(BaseModel):
     purchase_time: datetime = Field(description="购买时间")
     
     model_config = {"from_attributes": True}
+    
+    @field_serializer('purchase_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class DynamicWithPaidInfo(DynamicInfo):

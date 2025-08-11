@@ -4,7 +4,7 @@
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 
 class TagCreate(BaseModel):
@@ -37,6 +37,11 @@ class TagInfo(BaseModel):
     update_time: datetime = Field(..., description="更新时间")
 
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time', 'update_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class UserInterestTagCreate(BaseModel):
@@ -57,6 +62,11 @@ class UserInterestTagInfo(BaseModel):
     tag_info: Optional[TagInfo] = Field(None, description="标签信息")
 
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class ContentTagCreate(BaseModel):

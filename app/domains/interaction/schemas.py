@@ -3,7 +3,7 @@
 """
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 
 class InteractionInfo(BaseModel):
@@ -21,6 +21,11 @@ class InteractionInfo(BaseModel):
     update_time: datetime = Field(..., description="更新时间")
 
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time', 'update_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class InteractionQuery(BaseModel):
@@ -38,4 +43,9 @@ class InteractionUserInfo(BaseModel):
     user_avatar: Optional[str] = Field(None, description="用户头像")
     interaction_time: datetime = Field(..., description="互动时间")
 
-    model_config = {"from_attributes": True} 
+    model_config = {"from_attributes": True}
+    
+    @field_serializer('interaction_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S") 

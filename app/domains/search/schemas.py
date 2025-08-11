@@ -3,7 +3,7 @@
 """
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 
 class SearchRequest(BaseModel):
@@ -22,6 +22,11 @@ class SearchHistoryInfo(BaseModel):
     create_time: datetime = Field(..., description="创建时间")
 
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class HotSearchInfo(BaseModel):
@@ -35,6 +40,11 @@ class HotSearchInfo(BaseModel):
     update_time: datetime = Field(..., description="更新时间")
 
     model_config = {"from_attributes": True}
+    
+    @field_serializer('create_time', 'update_time')
+    def serialize_datetime(self, dt: datetime) -> str:
+        """序列化时间字段为指定格式"""
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class SearchResult(BaseModel):
