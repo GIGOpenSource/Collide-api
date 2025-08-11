@@ -43,6 +43,36 @@ class AdQueryService:
             conditions.append(Ad.sort_order >= query.min_sort)
         if query.max_sort is not None:
             conditions.append(Ad.sort_order <= query.max_sort)
+        
+        # 游戏广告查询条件
+        if query.game_company:
+            conditions.append(Ad.game_company.contains(query.game_company))
+        if query.game_type:
+            conditions.append(Ad.game_type.contains(query.game_type))
+        if query.game_platform:
+            conditions.append(Ad.game_platform.contains(query.game_platform))
+        if query.min_game_rating is not None:
+            conditions.append(Ad.game_rating >= query.min_game_rating)
+        if query.max_game_rating is not None:
+            conditions.append(Ad.game_rating <= query.max_game_rating)
+        if query.min_game_download_count is not None:
+            conditions.append(Ad.game_download_count >= query.min_game_download_count)
+        if query.max_game_download_count is not None:
+            conditions.append(Ad.game_download_count <= query.max_game_download_count)
+        
+        # 下载相关查询条件
+        if query.is_free_download is not None:
+            conditions.append(Ad.is_free_download == query.is_free_download)
+        if query.is_vip_download is not None:
+            conditions.append(Ad.is_vip_download == query.is_vip_download)
+        if query.is_coin_download is not None:
+            conditions.append(Ad.is_coin_download == query.is_coin_download)
+        if query.min_coin_price is not None:
+            conditions.append(Ad.coin_price >= query.min_coin_price)
+        if query.max_coin_price is not None:
+            conditions.append(Ad.coin_price <= query.max_coin_price)
+        if query.download_platform:
+            conditions.append(Ad.download_platform.contains(query.download_platform))
 
         stmt = select(Ad)
         if conditions:
