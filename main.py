@@ -40,6 +40,7 @@ from app.domains.goods.async_router import router as goods_router
 from app.domains.order.async_router import router as order_router
 from app.domains.payment.async_router import router as payment_router
 from app.domains.storage.async_router import router as storage_router
+from app.domains.interaction.async_router import router as interaction_router
 
 # 配置日志
 logging.basicConfig(
@@ -128,6 +129,7 @@ tags_metadata = [
     {"name": "社交动态", "description": "动态流、互动相关接口"},
     {"name": "评论管理", "description": "评论的增删改查、树状结构与回复"},
     {"name": "点赞/关注/收藏", "description": "常见互动行为"},
+    {"name": "互动管理", "description": "互动记录查询与管理"},
     {"name": "搜索", "description": "关键词搜索与热搜/历史"},
     {"name": "广告管理", "description": "广告的管理与投放"},
     {"name": "消息中心", "description": "消息与通知相关"},
@@ -259,6 +261,7 @@ app.include_router(goods_router)
 app.include_router(order_router)
 app.include_router(payment_router)
 app.include_router(storage_router)
+app.include_router(interaction_router)
 
 # 健康检查接口
 @app.get("/health", tags=["系统"], summary="健康检查")

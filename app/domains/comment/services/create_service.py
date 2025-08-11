@@ -3,11 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.exceptions import BusinessException
 from app.domains.comment.models import Comment
 from app.domains.comment.schemas import CommentCreate, CommentInfo
+from app.domains.interaction.services.record_service import InteractionRecordService
 
 
 class CommentCreateService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.interaction_service = InteractionRecordService(db)
 
     async def create_comment(self, user_id: int, user_nickname: str | None, user_avatar: str | None, data: CommentCreate) -> CommentInfo:
         try:
@@ -27,6 +29,16 @@ class CommentCreateService:
             self.db.add(comment)
             await self.db.commit()
             await self.db.refresh(comment)
+            
+            # 记录到互动表
+            await self.interaction_service.record_interaction(
+                interaction_type="COMMENT",
+                target_id=data.target_id,
+                user_id=user_id,
+                user_nickname=user_nickname or "未知用户",
+                user_avatar=user_avatar
+            )
+            
             return CommentInfo.model_validate(comment)
         except Exception as e:
             await self.db.rollback()

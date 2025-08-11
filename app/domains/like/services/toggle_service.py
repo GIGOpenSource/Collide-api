@@ -10,11 +10,13 @@ from app.domains.like.schemas import LikeToggleRequest, LikeInfo
 from app.domains.content.models import Content
 from app.domains.comment.models import Comment
 from app.domains.social.models import SocialDynamic
+from app.domains.interaction.services.record_service import InteractionRecordService
 
 
 class LikeToggleService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.interaction_service = InteractionRecordService(db)
 
     async def toggle_like(self, user_id: int, user_nickname: Optional[str], user_avatar: Optional[str], req: LikeToggleRequest) -> Tuple[bool, LikeInfo]:
         cached = await cache_service.check_idempotent(user_id, "toggle_like", req.like_type, req.target_id)
@@ -25,10 +27,29 @@ class LikeToggleService:
         if like is None:
             await self.db.execute(insert(Like).values(user_id=user_id, like_type=req.like_type, target_id=req.target_id, user_nickname=user_nickname, user_avatar=user_avatar, status="active"))
             is_liked = True
+            # 记录到互动表
+            await self.interaction_service.record_interaction(
+                interaction_type="LIKE",
+                target_id=req.target_id,
+                user_id=user_id,
+                user_nickname=user_nickname or "未知用户",
+                user_avatar=user_avatar
+            )
         else:
             new_status = "cancelled" if like.status == "active" else "active"
             await self.db.execute(update(Like).where(Like.id == like.id).values(status=new_status))
             is_liked = (new_status == "active")
+            # 更新互动表状态
+            if new_status == "cancelled":
+                await self.interaction_service.cancel_interaction("LIKE", req.target_id, user_id)
+            else:
+                await self.interaction_service.record_interaction(
+                    interaction_type="LIKE",
+                    target_id=req.target_id,
+                    user_id=user_id,
+                    user_nickname=user_nickname or "未知用户",
+                    user_avatar=user_avatar
+                )
         await self.db.commit()
         target_model = Content if req.like_type == "CONTENT" else Comment if req.like_type == "COMMENT" else SocialDynamic if req.like_type == "DYNAMIC" else None
         if target_model is None:
