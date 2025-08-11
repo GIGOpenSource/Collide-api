@@ -175,7 +175,7 @@ class AdQuery(BaseModel):
 class GameImageCreate(BaseModel):
     """创建游戏图片请求"""
     image_url: str = Field(..., description="图片URL")
-    image_type: str = Field(..., description="图片类型：cover（封面）、banner（横幅）、screenshot（截图）、icon（图标）")
+    image_type: Optional[str] = Field(None, description="图片类型：cover（封面）、banner（横幅）、screenshot（截图）、icon（图标）")
     image_title: Optional[str] = Field(None, description="图片标题")
     image_description: Optional[str] = Field(None, description="图片描述")
     alt_text: Optional[str] = Field(None, description="图片替代文本")
@@ -187,7 +187,7 @@ class GameImageCreateWithAdId(BaseModel):
     """创建游戏图片请求（包含广告ID）"""
     ad_id: int = Field(..., description="关联的广告ID")
     image_url: str = Field(..., description="图片URL")
-    image_type: str = Field(..., description="图片类型：cover（封面）、banner（横幅）、screenshot（截图）、icon（图标）")
+    image_type: Optional[str] = Field(None, description="图片类型：cover（封面）、banner（横幅）、screenshot（截图）、icon（图标）")
     image_title: Optional[str] = Field(None, description="图片标题")
     image_description: Optional[str] = Field(None, description="图片描述")
     alt_text: Optional[str] = Field(None, description="图片替代文本")
