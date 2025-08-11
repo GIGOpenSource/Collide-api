@@ -28,6 +28,8 @@ class AdCreate(BaseModel):
     game_version: Optional[str] = Field(None, description="游戏版本号")
     game_platform: Optional[str] = Field(None, description="游戏平台（如：iOS、Android、PC，多个平台用逗号分隔）")
     game_tags: Optional[str] = Field(None, description="游戏标签（多个标签用逗号分隔）")
+    game_download_count: int = Field(default=0, description="游戏下载次数")
+    game_rating_count: int = Field(default=0, description="游戏评分人数")
     
     # 下载相关字段
     is_free_download: bool = Field(True, description="是否支持普通用户免费下载")
@@ -66,6 +68,8 @@ class AdUpdate(BaseModel):
     game_version: Optional[str] = Field(None, description="游戏版本号")
     game_platform: Optional[str] = Field(None, description="游戏平台（如：iOS、Android、PC，多个平台用逗号分隔）")
     game_tags: Optional[str] = Field(None, description="游戏标签（多个标签用逗号分隔）")
+    game_download_count: Optional[int] = Field(None, ge=0, description="游戏下载次数")
+    game_rating_count: Optional[int] = Field(None, ge=0, description="游戏评分人数")
     
     # 下载相关字段
     is_free_download: Optional[bool] = Field(None, description="是否支持普通用户免费下载")

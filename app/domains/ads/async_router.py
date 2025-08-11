@@ -30,7 +30,10 @@ async def create_ad(
     except BusinessException as e:
         raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
-        raise HTTPException(status_code=500, detail="创建广告失败")
+        import traceback
+        print(f"创建广告失败: {str(e)}")
+        print(f"错误详情: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"创建广告失败: {str(e)}")
 
 
 # @router.put("/{ad_id}", response_model=SuccessResponse[AdInfo], summary="更新广告")
