@@ -11,7 +11,7 @@ from app.common.dependencies import get_pagination
 from app.common.pagination import PaginationParams
 from app.common.exceptions import BusinessException
 from app.domains.ads.async_service import AdAsyncService
-from app.domains.ads.schemas import AdCreate, AdUpdate, AdInfo, AdQuery
+from app.domains.ads.schemas import AdCreate, AdUpdate, AdInfo, AdQuery, GameImageCreate, GameImageCreateWithAdId, GameImageUpdate, GameImageInfo, GameImageBatchCreate, GameAdInfo
 
 
 router = APIRouter(prefix="/api/v1/ads", tags=["广告查询"])
@@ -130,9 +130,8 @@ async def get_ad_list(
             page_size=pagination.page_size,
             message=e.message
         )
-    except Exception as e:
-        logger.error(f"获取广告列表失败: {str(e)}")
-        return PaginationResponse.create(
+            except Exception as e:
+            return PaginationResponse.create(
             datas=[],
             total=0,
             current_page=pagination.page,
@@ -171,4 +170,147 @@ async def get_active_ads_by_type(
 #     except BusinessException as e:
 #         raise HTTPException(status_code=400, detail=e.message)
 #     except Exception as e:
-#         raise HTTPException(status_code=500, detail="切换广告状态失败") 
+#         raise HTTPException(status_code=500, detail="切换广告状态失败")
+
+# ================ 游戏图片相关接口 ================
+
+@router.post("/game-images", response_model=SuccessResponse[GameImageInfo], summary="创建游戏图片")
+async def create_game_image(
+    req: GameImageCreateWithAdId,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """创建游戏图片"""
+    try:
+        service = AdAsyncService(db)
+        game_image = await service.create_game_image(req)
+        return SuccessResponse.create(data=game_image, message="创建游戏图片成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="创建游戏图片失败")
+
+
+@router.post("/game-images/batch", response_model=SuccessResponse[List[GameImageInfo]], summary="批量创建游戏图片")
+async def batch_create_game_images(
+    req: GameImageBatchCreate,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """批量创建游戏图片"""
+    try:
+        service = AdAsyncService(db)
+        game_images = await service.batch_create_game_images(req)
+        return SuccessResponse.create(data=game_images, message="批量创建游戏图片成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="批量创建游戏图片失败")
+
+
+@router.get("/game-images/{image_id}", response_model=SuccessResponse[GameImageInfo], summary="获取游戏图片详情")
+async def get_game_image_by_id(
+    image_id: int,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """获取游戏图片详情"""
+    try:
+        service = AdAsyncService(db)
+        game_image = await service.get_game_image_by_id(image_id)
+        return SuccessResponse.create(data=game_image, message="获取游戏图片详情成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="获取游戏图片详情失败")
+
+
+@router.get("/{ad_id}/game-images", response_model=PaginationResponse[GameImageInfo], summary="获取广告的游戏图片列表")
+async def get_game_images_by_ad_id(
+    ad_id: int,
+    pagination: PaginationParams = Depends(get_pagination),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """获取广告的游戏图片列表"""
+    try:
+        service = AdAsyncService(db)
+        result = await service.get_game_images_by_ad_id(ad_id, pagination)
+        return PaginationResponse.from_pagination_result(result, "获取游戏图片列表成功")
+    except BusinessException as e:
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
+    except Exception as e:
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取游戏图片列表失败，请稍后重试"
+        )
+
+
+@router.put("/game-images/{image_id}", response_model=SuccessResponse[GameImageInfo], summary="更新游戏图片")
+async def update_game_image(
+    image_id: int,
+    req: GameImageUpdate,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """更新游戏图片"""
+    try:
+        service = AdAsyncService(db)
+        game_image = await service.update_game_image(image_id, req)
+        return SuccessResponse.create(data=game_image, message="更新游戏图片成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="更新游戏图片失败")
+
+
+@router.delete("/game-images/{image_id}", response_model=SuccessResponse[dict], summary="删除游戏图片")
+async def delete_game_image(
+    image_id: int,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """删除游戏图片"""
+    try:
+        service = AdAsyncService(db)
+        await service.delete_game_image(image_id)
+        return SuccessResponse.create(data={}, message="删除游戏图片成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="删除游戏图片失败")
+
+
+@router.post("/game-images/{image_id}/toggle", response_model=SuccessResponse[GameImageInfo], summary="切换游戏图片状态")
+async def toggle_game_image_status(
+    image_id: int,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """切换游戏图片状态"""
+    try:
+        service = AdAsyncService(db)
+        game_image = await service.toggle_game_image_status(image_id)
+        return SuccessResponse.create(data=game_image, message="切换游戏图片状态成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="切换游戏图片状态失败")
+
+
+@router.get("/{ad_id}/with-images", response_model=SuccessResponse[GameAdInfo], summary="获取包含图片列表的游戏广告")
+async def get_game_ad_with_images(
+    ad_id: int,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """获取包含图片列表的游戏广告"""
+    try:
+        service = AdAsyncService(db)
+        game_ad = await service.get_game_ad_with_images(ad_id)
+        return SuccessResponse.create(data=game_ad, message="获取游戏广告详情成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="获取游戏广告详情失败") 

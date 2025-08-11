@@ -2,7 +2,7 @@
 广告模块数据库模型
 与 sql/ads-simple.sql 保持一致
 """
-from sqlalchemy import Column, BigInteger, String, DateTime, Integer, Boolean, Text, Numeric
+from sqlalchemy import Column, BigInteger, String, DateTime, Integer, Boolean, Text, Numeric, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -66,7 +66,7 @@ class GameImage(Base):
     __tablename__ = "t_game_image"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="图片ID")
-    ad_id = Column(BigInteger, nullable=False, comment="关联的广告ID")
+    ad_id = Column(BigInteger, ForeignKey("t_ad.id"), nullable=False, comment="关联的广告ID")
     image_url = Column(String(1000), nullable=False, comment="图片URL")
     image_type = Column(String(50), comment="图片类型：cover（封面）、banner（横幅）、screenshot（截图）、icon（图标）")
     image_title = Column(String(200), comment="图片标题")
