@@ -71,7 +71,7 @@ async def delete_dynamic(
         raise HTTPException(status_code=500, detail="删除动态失败")
 
 
-@router.get("/dynamics-follow", response_model=PaginationResponse[DynamicWithFollowInfo], summary="获取带关注状态信息的动态列表")
+@router.get("/follow", response_model=PaginationResponse[DynamicWithFollowInfo], summary="获取带关注状态信息的动态列表")
 async def list_dynamics_with_follow_info(
     keyword: Optional[str] = Query(None, description="关键词（内容模糊搜索）"),
     dynamic_type: Optional[str] = Query(None, description="动态类型：text、image、video、share"),
