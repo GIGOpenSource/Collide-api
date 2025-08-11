@@ -102,7 +102,7 @@ class DynamicQuery(BaseModel):
     status: Optional[str] = Field(None, description="状态过滤")
     # 排序相关字段
     sort_by: Optional[str] = Field(None, description="排序字段：create_time、like_count、comment_count、share_count")
-    sort_order: Optional[str] = Field("desc", description="排序方向：asc、desc")
+    sort_order: Optional[str] = Field(None, description="排序方向：asc、desc")
     # 数值范围筛选
     min_likes: Optional[int] = Field(None, description="最小点赞数")
     max_likes: Optional[int] = Field(None, description="最大点赞数")

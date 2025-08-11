@@ -71,6 +71,74 @@ async def delete_dynamic(
         raise HTTPException(status_code=500, detail="删除动态失败")
 
 
+@router.get("/dynamics-follow", response_model=PaginationResponse[DynamicWithFollowInfo], summary="获取带关注状态信息的动态列表")
+async def list_dynamics_with_follow_info(
+    keyword: Optional[str] = Query(None, description="关键词（内容模糊搜索）"),
+    dynamic_type: Optional[str] = Query(None, description="动态类型：text、image、video、share"),
+    user_id: Optional[int] = Query(None, description="用户ID过滤"),
+    status: Optional[str] = Query(None, description="状态过滤：normal、hidden、deleted"),
+    # 排序相关参数
+    sort_by: Optional[str] = Query(None, description="排序字段：create_time、like_count、comment_count、share_count"),
+    sort_order: Optional[str] = Query("desc", description="排序方向：asc、desc"),
+    # 数值范围筛选
+    min_likes: Optional[int] = Query(None, description="最小点赞数"),
+    max_likes: Optional[int] = Query(None, description="最大点赞数"),
+    min_comments: Optional[int] = Query(None, description="最小评论数"),
+    max_comments: Optional[int] = Query(None, description="最大评论数"),
+    min_shares: Optional[int] = Query(None, description="最小分享数"),
+    max_shares: Optional[int] = Query(None, description="最大分享数"),
+    pagination: PaginationParams = Depends(get_pagination),
+    current_user: Optional[UserContext] = Depends(get_current_user_context),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    获取带关注状态信息的动态列表
+    
+    支持按点赞数、评论数、分享数等字段排序
+    支持数值范围筛选
+    返回每个动态发布者与当前用户的关注关系
+    """
+    try:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        service = SocialAsyncService(db)
+        query = DynamicQuery(
+            keyword=keyword,
+            dynamic_type=dynamic_type,
+            user_id=user_id,
+            status=status,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            min_likes=min_likes,
+            max_likes=max_likes,
+            min_comments=min_comments,
+            max_comments=max_comments,
+            min_shares=min_shares,
+            max_shares=max_shares
+        )
+        current_user_id = current_user.user_id if current_user else None
+        result = await service.list_dynamics_with_follow_info(query, pagination, current_user_id)
+        return PaginationResponse.from_pagination_result(result, "获取成功")
+    except BusinessException as e:
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message=e.message
+        )
+    except Exception as e:
+        logger.error(f"获取动态列表失败: {str(e)}")
+        return PaginationResponse.create(
+            datas=[],
+            total=0,
+            current_page=pagination.page,
+            page_size=pagination.page_size,
+            message="获取动态列表失败，请稍后重试"
+        )
+
+
 @router.get("/dynamics/{dynamic_id}", response_model=SuccessResponse[DynamicInfo], summary="获取动态详情")
 async def get_dynamic(
     dynamic_id: int, 
@@ -408,70 +476,5 @@ async def list_pending_review_dynamics(
         )
 
 
-@router.get("/dynamics-follow", response_model=PaginationResponse[DynamicWithFollowInfo], summary="获取带关注状态信息的动态列表")
-async def list_dynamics_with_follow_info(
-    keyword: Optional[str] = Query(None, description="关键词（内容模糊搜索）"),
-    dynamic_type: Optional[str] = Query(None, description="动态类型：text、image、video、share"),
-    user_id: Optional[int] = Query(None, description="用户ID过滤"),
-    status: Optional[str] = Query(None, description="状态过滤：normal、hidden、deleted"),
-    # 排序相关参数
-    sort_by: Optional[str] = Query(None, description="排序字段：create_time、like_count、comment_count、share_count"),
-    sort_order: Optional[str] = Query("desc", description="排序方向：asc、desc"),
-    # 数值范围筛选
-    min_likes: Optional[int] = Query(None, description="最小点赞数"),
-    max_likes: Optional[int] = Query(None, description="最大点赞数"),
-    min_comments: Optional[int] = Query(None, description="最小评论数"),
-    max_comments: Optional[int] = Query(None, description="最大评论数"),
-    min_shares: Optional[int] = Query(None, description="最小分享数"),
-    max_shares: Optional[int] = Query(None, description="最大分享数"),
-    pagination: PaginationParams = Depends(get_pagination),
-    current_user: Optional[UserContext] = Depends(get_current_user_context),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """
-    获取带关注状态信息的动态列表
-    
-    支持按点赞数、评论数、分享数等字段排序
-    支持数值范围筛选
-    返回每个动态发布者与当前用户的关注关系
-    """
-    try:
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        service = SocialAsyncService(db)
-        query = DynamicQuery(
-            keyword=keyword,
-            dynamic_type=dynamic_type,
-            user_id=user_id,
-            status=status,
-            sort_by=sort_by,
-            sort_order=sort_order,
-            min_likes=min_likes,
-            max_likes=max_likes,
-            min_comments=min_comments,
-            max_comments=max_comments,
-            min_shares=min_shares,
-            max_shares=max_shares
-        )
-        current_user_id = current_user.user_id if current_user else None
-        result = await service.list_dynamics_with_follow_info(query, pagination, current_user_id)
-        return PaginationResponse.from_pagination_result(result, "获取成功")
-    except BusinessException as e:
-        return PaginationResponse.create(
-            datas=[],
-            total=0,
-            current_page=pagination.page,
-            page_size=pagination.page_size,
-            message=e.message
-        )
-    except Exception as e:
-        logger.error(f"获取动态列表失败: {str(e)}")
-        return PaginationResponse.create(
-            datas=[],
-            total=0,
-            current_page=pagination.page,
-            page_size=pagination.page_size,
-            message="获取动态列表失败，请稍后重试"
-        )
+
 

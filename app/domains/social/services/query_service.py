@@ -199,6 +199,7 @@ class SocialQueryService:
         if query.sort_order and query.sort_order.lower() == "asc":
             return sort_field.asc()
         else:
+            # 默认降序
             return sort_field.desc()
 
     def _build_conditions(self, query: DynamicQuery, current_user_id: Optional[int] = None):
