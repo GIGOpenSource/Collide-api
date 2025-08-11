@@ -17,20 +17,20 @@ from app.domains.ads.schemas import AdCreate, AdUpdate, AdInfo, AdQuery
 router = APIRouter(prefix="/api/v1/ads", tags=["广告查询"])
 
 
-# @router.post("/", response_model=SuccessResponse[AdInfo], summary="创建广告")
-# async def create_ad(
-#     req: AdCreate,
-#     db: AsyncSession = Depends(get_async_db),
-# ):
-#     """创建广告"""
-#     try:
-#         service = AdAsyncService(db)
-#         ad = await service.create_ad(req)
-#         return SuccessResponse.create(data=ad, message="创建广告成功")
-#     except BusinessException as e:
-#         raise HTTPException(status_code=400, detail=e.message)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail="创建广告失败")
+@router.post("/", response_model=SuccessResponse[AdInfo], summary="创建广告")
+async def create_ad(
+    req: AdCreate,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """创建广告"""
+    try:
+        service = AdAsyncService(db)
+        ad = await service.create_ad(req)
+        return SuccessResponse.create(data=ad, message="创建广告成功")
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="创建广告失败")
 
 
 # @router.put("/{ad_id}", response_model=SuccessResponse[AdInfo], summary="更新广告")
