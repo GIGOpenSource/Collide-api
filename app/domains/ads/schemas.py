@@ -109,9 +109,9 @@ class AdInfo(BaseModel):
     game_rating_count: int = Field(default=0, description="游戏评分人数")
     
     # 下载相关字段
-    is_free_download: bool = Field(..., description="是否支持普通用户免费下载")
-    is_vip_download: bool = Field(..., description="是否支持VIP免费下载")
-    is_coin_download: bool = Field(..., description="是否支持金币购买下载")
+    is_free_download: bool = Field(default=True, description="是否支持普通用户免费下载")
+    is_vip_download: bool = Field(default=False, description="是否支持VIP免费下载")
+    is_coin_download: bool = Field(default=False, description="是否支持金币购买下载")
     coin_price: int = Field(default=0, description="金币价格（当支持金币购买时）")
     original_coin_price: int = Field(default=0, description="原价金币（用于折扣显示）")
     download_url: Optional[str] = Field(None, description="下载链接")
